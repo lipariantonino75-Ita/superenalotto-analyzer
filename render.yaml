@@ -4,8 +4,8 @@ services:
     env: python
     region: frankfurt
     rootDir: backend
-Defaulting to user installation because normal site-packages is not writeable
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7
@@ -13,5 +13,3 @@ Defaulting to user installation because normal site-packages is not writeable
         value: production
       - key: SECRET_KEY
         generateValue: true
-      - key: FREE_TRIAL_DAYS
-        value: "3"
