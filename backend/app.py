@@ -16,35 +16,125 @@ from analysis import SuperEnalottoAnalyzer
 # Inizializza database
 db = Database()
 
+def initialize_database():
+    """Inizializza il database e importa dati reali se vuoto"""
+    print("🔧 Inizializzazione database...")
+    
+    if not db.init_db():
+        print("❌ Errore inizializzazione database")
+        return
+    
+    # Assicura la connessione
+    if not db.conn:
+        db.connect()
+    
+    # Controlla se ci sono estrazioni
+    count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
+    
+    if count == 0:
+        print("📥 Database vuoto! Importazione dati reali...")
+        try:
+            # Cerca il file Excel nella cartella data
+            data_dir = os.path.join(os.path.dirname(__file__), 'data')
+            
+            if os.path.exists(data_dir):
+                excel_files = [f for f in os.listdir(data_dir) if f.endswith('.xlsx')]
+                
+                if excel_files:
+                    print(f"📁 Trovato file: {excel_files[0]}")
+                    from import_data import import_real_extractions
+                    excel_path = os.path.join(data_dir, excel_files[0])
+                    import_real_extractions(excel_path)
+                    print("✅ Dati reali importati con successo!")
+                else:
+                    print("⚠️ Nessun file Excel trovato, uso dati di esempio")
+                    db.seed_sample_data()
+            else:
+                print("⚠️ Cartella data non trovata, uso dati di esempio")
+                db.seed_sample_data()
+        except Exception as e:
+            print(f"⚠️ Errore importazione: {e}")
+            print("📥 Uso dati di esempio...")
+            db.seed_sample_data()
+    else:
+        print(f"✅ Database già popolato con {count} estrazioni")
+    
+    db.disconnect()
+
+# Inizializza il database all'avvio
+initialize_database()
+
 @app.route('/')
 def home():
     return jsonify({
         'name': 'SuperEnalotto Analyzer API',
         'version': '1.0.0',
-        'status': 'active'
+        'status': 'active',
+        'database': 'ready'
     })
 
 @app.route('/api/health')
 def health_check():
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat()
-    })
+    try:
+        if not db.conn:
+            db.connect()
+        count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
+        last_date = db.cursor.execute('SELECT MAX(extraction_date) FROM extractions').fetchone()[0]
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'extractions_count': count,
+            'last_extraction': last_date
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        })
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_numbers():
     try:
         data = request.get_json() or {}
+        
+        # Assicura connessione al database
+        if not db.conn:
+            db.connect()
+        
+        # Verifica che ci siano dati
+        count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
+        if count == 0:
+            return jsonify({'error': 'Nessuna estrazione disponibile nel database'}), 400
+        
         analyzer = SuperEnalottoAnalyzer(db)
         results = analyzer.perform_complete_analysis()
+        
+        if 'error' in results:
+            return jsonify(results), 400
+        
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/stats')
+def get_stats():
+    try:
+        if not db.conn:
+            db.connect()
+        
+        count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
+        first = db.cursor.execute('SELECT MIN(extraction_date) FROM extractions').fetchone()[0]
+        last = db.cursor.execute('SELECT MAX(extraction_date) FROM extractions').fetchone()[0]
+        
+        return jsonify({
+            'total_extractions': count,
+            'first_extraction': first,
+            'last_extraction': last,
+            'numbers_analyzed': 90
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
-    db.init_db()
-    extractions = db.get_extractions(1)
-    if not extractions:
-        db.seed_sample_data()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
