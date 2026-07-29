@@ -1,3 +1,12 @@
+import sys 
+import os 
+ 
+# Fix per Python 3.12+ 
+if sys.version_info , 12): 
+    import collections 
+    import collections.abc 
+    collections.MutableMapping = collections.abc.MutableMapping 
+ 
 """
 API principale per SuperEnalotto Analyzer
 """

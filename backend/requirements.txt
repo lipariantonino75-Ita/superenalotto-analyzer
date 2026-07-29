@@ -1,27 +1,22 @@
-# Framework Web
-Flask==3.0.0
-Flask-CORS==4.0.0
-gunicorn==21.2.0
-
-# Analisi Dati
-numpy==1.24.3
-pandas==2.0.3
-scipy==1.11.4
-
-# Database
-sqlalchemy==2.0.23
-
-# UtilitÃ 
-python-dotenv==1.0.0
-python-dateutil==2.8.2
-
-# Testing
-pytest==7.4.3
-pytest-cov==4.1.0
-
-# Sicurezza
-python-jose==3.3.0
-passlib==1.7.4
-
-# API
-requests==2.31.0
+# Framework Web 
+Flask==3.0.0 
+Flask-CORS==4.0.0 
+gunicorn==21.2.0 
+ 
+# Analisi Dati 
+numpy==1.26.4 
+pandas==2.2.0 
+scipy==1.12.0 
+ 
+# Database 
+sqlalchemy==2.0.27 
+ 
+# Build tools 
+setuptools==69.0.0 
+wheel==0.42.0 
+pip==24.0 
+ 
+# Utilit… 
+python-dotenv==1.0.0 
+python-dateutil==2.8.2 
+requests==2.31.0 
