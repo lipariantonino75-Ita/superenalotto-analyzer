@@ -1,0 +1,7 @@
+* text=auto
+*.py text diff=python
+*.txt text
+*.md text
+*.yaml text
+*.yml text
+requirements.txt text working-tree-encoding=UTF-8
