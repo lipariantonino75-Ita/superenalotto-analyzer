@@ -9,10 +9,6 @@ venv/
 env/ 
 .env 
  
-# Database 
-*.db 
-*.sqlite3 
- 
 # Node 
 node_modules/ 
 .expo/ 
