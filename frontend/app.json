@@ -31,6 +31,9 @@
         "projectId": "76553078-a7af-4d5c-9330-24a911c98059"
       }
     },
-    "owner": "palermo1975"
+    "owner": "palermo1975",
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }
