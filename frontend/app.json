@@ -1,27 +1,27 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "SuperEnalotto Analyzer",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a237e"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.palermo1975.superenalotto"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1a237e"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.palermo1975.frontend"
+      "package": "com.palermo1975.superenalotto",
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +30,7 @@
       "eas": {
         "projectId": "76553078-a7af-4d5c-9330-24a911c98059"
       }
-    }
+    },
+    "owner": "palermo1975"
   }
 }
