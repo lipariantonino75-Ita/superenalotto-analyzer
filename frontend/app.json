@@ -1,35 +1,35 @@
 {
   "expo": {
-    "name": "SuperEnalotto Analyzer",
+    "name": "frontend",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#1a237e",
-      "resizeMode": "contain"
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.lipariantonino75.superenalottoanalyzer"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1a237e",
-        "foregroundImage": "./assets/images/adaptive-icon.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
-      "package": "com.lipariantonino75.superenalottoanalyzer",
-      "versionCode": 1
+      "edgeToEdgeEnabled": true,
+      "package": "com.palermo1975.frontend"
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
         "projectId": "76553078-a7af-4d5c-9330-24a911c98059"
       }
-    },
-    "owner": "palermo1975"
+    }
   }
 }
