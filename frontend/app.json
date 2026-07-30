@@ -33,7 +33,8 @@
     },
     "owner": "palermo1975",
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      "expo-status-bar"
     ]
   }
 }
