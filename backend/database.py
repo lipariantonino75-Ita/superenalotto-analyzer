@@ -256,3 +256,52 @@ class Database:
         except Exception as e:
             print(f"Errore verifica abbonamento: {e}")
             return None
+from flask import Flask, request, jsonify
+from database import Database
+
+app = Flask(__name__)
+db = Database()
+
+# 1. ROTTA PER LEGGERE LE ESTRAZIONI
+@app.route('/api/extractions', methods=['GET'])
+def get_extractions_route():
+    limit = request.args.get('limit', default=200, type=int)
+    data = db.get_extractions(limit=limit)
+    return jsonify({"success": True, "data": data}), 200
+
+
+# 2. ROTTA PER INSERIRE UNA NUOVA ESTRAZIONE
+@app.route('/api/extractions', methods=['POST'])
+def add_extraction_route():
+    data = request.get_json()
+
+    # Recupera i campi dal JSON ricevuto
+    extraction_date = data.get('extraction_date') # Formato: "YYYY-MM-DD"
+    numbers = data.get('numbers')                  # Array di 6 interi: [1, 15, 23, 45, 60, 89]
+    jolly = data.get('jolly')
+    superstar = data.get('superstar')
+
+    # Validazione base
+    if not extraction_date or not numbers or len(numbers) != 6:
+        return jsonify({"success": False, "error": "Servono la data e esattamente 6 numeri principali."}), 400
+
+    # Ordina i 6 numeri in ordine crescente
+    sorted_numbers = sorted([int(n) for n in numbers])
+
+    # Inserisci nel database
+    success, message = db.add_extraction(
+        extraction_date=extraction_date,
+        n1=sorted_numbers[0],
+        n2=sorted_numbers[1],
+        n3=sorted_numbers[2],
+        n4=sorted_numbers[3],
+        n5=sorted_numbers[4],
+        n6=sorted_numbers[5],
+        jolly=int(jolly) if jolly else None,
+        superstar=int(superstar) if superstar else None
+    )
+
+    if success:
+        return jsonify({"success": True, "message": message}), 201
+    else:
+        return jsonify({"success": False, "error": message}), 400

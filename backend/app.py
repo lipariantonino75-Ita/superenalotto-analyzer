@@ -135,6 +135,68 @@ def get_stats():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# ==========================================
+# NUOVE ROTTE: VISUALIZZA ED INSERISCI ESTRAZIONI
+# ==========================================
+
+@app.route('/api/extractions', methods=['GET'])
+def get_extractions():
+    """Recupera l'elenco delle estrazioni"""
+    try:
+        limit = request.args.get('limit', default=200, type=int)
+        extractions = db.get_extractions(limit=limit)
+        return jsonify({
+            'success': True,
+            'count': len(extractions),
+            'extractions': extractions
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/extractions', methods=['POST'])
+def add_extraction():
+    """Inserisce una nuova estrazione e aggiorna le statistiche"""
+    try:
+        data = request.get_json() or {}
+        
+        extraction_date = data.get('extraction_date') # Formato: "YYYY-MM-DD"
+        numbers = data.get('numbers')                  # Array di 6 numeri, es: [10, 23, 45, 60, 72, 89]
+        jolly = data.get('jolly')
+        superstar = data.get('superstar')
+
+        # Validazione dei dati di input
+        if not extraction_date or not numbers or len(numbers) != 6:
+            return jsonify({
+                'success': False, 
+                'error': 'Data obbligatoria e servono esattamente 6 numeri principali.'
+            }), 400
+
+        # Ordina i numeri in ordine crescente
+        sorted_numbers = sorted([int(n) for n in numbers])
+
+        # Inserimento nel Database (aggiorna automaticamente anche le statistiche)
+        success, message = db.add_extraction(
+            extraction_date=extraction_date,
+            n1=sorted_numbers[0],
+            n2=sorted_numbers[1],
+            n3=sorted_numbers[2],
+            n4=sorted_numbers[3],
+            n5=sorted_numbers[4],
+            n6=sorted_numbers[5],
+            jolly=int(jolly) if jolly is not None and str(jolly).isdigit() else None,
+            superstar=int(superstar) if superstar is not None and str(superstar).isdigit() else None
+        )
+
+        if success:
+            return jsonify({'success': True, 'message': message}), 201
+        else:
+            return jsonify({'success': False, 'error': message}), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
