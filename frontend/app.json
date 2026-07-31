@@ -21,7 +21,7 @@
         "backgroundColor": "#1a237e"
       },
       "package": "com.lipariantonino75.superenalottoanalyzer",
-      "versionCode": 9
+      "versionCode": 10
     },
     "web": {
       "favicon": "./assets/favicon.png"
