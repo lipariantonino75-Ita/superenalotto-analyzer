@@ -24,22 +24,17 @@ def initialize_database():
         print("❌ Errore inizializzazione database")
         return
     
-    # Assicura la connessione
     if not db.conn:
         db.connect()
     
-    # Controlla se ci sono estrazioni
     count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
     
     if count == 0:
         print("📥 Database vuoto! Importazione dati reali...")
         try:
-            # Cerca il file Excel nella cartella data
             data_dir = os.path.join(os.path.dirname(__file__), 'data')
-            
             if os.path.exists(data_dir):
                 excel_files = [f for f in os.listdir(data_dir) if f.endswith('.xlsx')]
-                
                 if excel_files:
                     print(f"📁 Trovato file: {excel_files[0]}")
                     from import_data import import_real_extractions
@@ -54,14 +49,12 @@ def initialize_database():
                 db.seed_sample_data()
         except Exception as e:
             print(f"⚠️ Errore importazione: {e}")
-            print("📥 Uso dati di esempio...")
             db.seed_sample_data()
     else:
         print(f"✅ Database già popolato con {count} estrazioni")
     
     db.disconnect()
 
-# Inizializza il database all'avvio
 initialize_database()
 
 @app.route('/')
@@ -87,31 +80,21 @@ def health_check():
             'last_extraction': last_date
         })
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        })
+        return jsonify({'status': 'error', 'error': str(e)})
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_numbers():
     try:
         data = request.get_json() or {}
-        
-        # Assicura connessione al database
         if not db.conn:
             db.connect()
-        
-        # Verifica che ci siano dati
         count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
         if count == 0:
             return jsonify({'error': 'Nessuna estrazione disponibile nel database'}), 400
-        
         analyzer = SuperEnalottoAnalyzer(db)
         results = analyzer.perform_complete_analysis()
-        
         if 'error' in results:
             return jsonify(results), 400
-        
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -121,11 +104,9 @@ def get_stats():
     try:
         if not db.conn:
             db.connect()
-        
         count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
         first = db.cursor.execute('SELECT MIN(extraction_date) FROM extractions').fetchone()[0]
         last = db.cursor.execute('SELECT MAX(extraction_date) FROM extractions').fetchone()[0]
-        
         return jsonify({
             'total_extractions': count,
             'first_extraction': first,
@@ -135,67 +116,33 @@ def get_stats():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-# ==========================================
-# NUOVE ROTTE: VISUALIZZA ED INSERISCI ESTRAZIONI
-# ==========================================
-
-@app.route('/api/extractions', methods=['GET'])
-def get_extractions():
-    """Recupera l'elenco delle estrazioni"""
-    try:
-        limit = request.args.get('limit', default=200, type=int)
-        extractions = db.get_extractions(limit=limit)
-        return jsonify({
-            'success': True,
-            'count': len(extractions),
-            'extractions': extractions
-        }), 200
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 @app.route('/api/extractions', methods=['POST'])
 def add_extraction():
-    """Inserisce una nuova estrazione e aggiorna le statistiche"""
     try:
-        data = request.get_json() or {}
+        data = request.get_json()
+        date = data.get('date')
+        numbers = data.get('numbers')
         
-        extraction_date = data.get('extraction_date') # Formato: "YYYY-MM-DD"
-        numbers = data.get('numbers')                  # Array di 6 numeri, es: [10, 23, 45, 60, 72, 89]
-        jolly = data.get('jolly')
-        superstar = data.get('superstar')
-
-        # Validazione dei dati di input
-        if not extraction_date or not numbers or len(numbers) != 6:
-            return jsonify({
-                'success': False, 
-                'error': 'Data obbligatoria e servono esattamente 6 numeri principali.'
-            }), 400
-
-        # Ordina i numeri in ordine crescente
-        sorted_numbers = sorted([int(n) for n in numbers])
-
-        # Inserimento nel Database (aggiorna automaticamente anche le statistiche)
-        success, message = db.add_extraction(
-            extraction_date=extraction_date,
-            n1=sorted_numbers[0],
-            n2=sorted_numbers[1],
-            n3=sorted_numbers[2],
-            n4=sorted_numbers[3],
-            n5=sorted_numbers[4],
-            n6=sorted_numbers[5],
-            jolly=int(jolly) if jolly is not None and str(jolly).isdigit() else None,
-            superstar=int(superstar) if superstar is not None and str(superstar).isdigit() else None
-        )
-
-        if success:
-            return jsonify({'success': True, 'message': message}), 201
-        else:
-            return jsonify({'success': False, 'error': message}), 400
-
+        if not date or not numbers or len(numbers) != 6:
+            return jsonify({'error': 'Data e 6 numeri richiesti'}), 400
+        
+        if any(n < 1 or n > 90 for n in numbers):
+            return jsonify({'error': 'Numeri devono essere tra 1 e 90'}), 400
+        
+        if not db.conn:
+            db.connect()
+        
+        db.cursor.execute('''
+            INSERT INTO extractions (extraction_date, n1, n2, n3, n4, n5, n6)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (date, numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5]))
+        
+        db.conn.commit()
+        db.update_number_statistics()
+        
+        return jsonify({'success': True, 'message': 'Estrazione aggiunta con successo'})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
