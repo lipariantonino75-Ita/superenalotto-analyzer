@@ -10,18 +10,31 @@ const API_BASE_URL = 'https://superenalotto-api.onrender.com';
 function HomeScreen({ navigation }) {
   const [totalExtractions, setTotalExtractions] = useState(null);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
+  // Funzione con parametro per il refresh silenzioso
+  const fetchStats = async (isSilent = false) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/stats`);
       setTotalExtractions(response.data.total_extractions);
     } catch (error) {
-      console.log('Errore statistiche');
+      // Mostra l'errore in console solo se non è un ciclo in background
+      if (!isSilent) {
+        console.log('Errore statistiche');
+      }
     }
   };
+
+  useEffect(() => {
+    // 1. Primo caricamento all'apertura della schermata
+    fetchStats(false);
+
+    // 2. Refresh silenzioso automatico ogni 30 secondi (30000 ms)
+    const interval = setInterval(() => {
+      fetchStats(true);
+    }, 30000);
+
+    // 3. Pulizia del timer quando si cambia schermata
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <ScrollView style={styles.container}>
