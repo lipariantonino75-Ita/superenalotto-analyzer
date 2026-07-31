@@ -144,6 +144,20 @@ def add_extraction():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/extractions/<date>', methods=['DELETE'])
+def delete_extraction(date):
+    try:
+        if not db.conn:
+            db.connect()
+        
+        db.cursor.execute('DELETE FROM extractions WHERE extraction_date = ?', (date,))
+        db.conn.commit()
+        db.update_number_statistics()
+        
+        return jsonify({'success': True, 'message': f'Estrazione del {date} rimossa con successo'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
