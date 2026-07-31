@@ -13,14 +13,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.palermo1975.superenalotto"
+      "bundleIdentifier": "com.lipariantonino75.superenalottoanalyzer"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a237e"
       },
-      "package": "com.palermo1975.superenalotto",
+      "package": "com.lipariantonino75.superenalottoanalyzer",
       "versionCode": 3
     },
     "web": {
