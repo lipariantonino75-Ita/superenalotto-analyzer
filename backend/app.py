@@ -144,6 +144,19 @@ def add_extraction():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/extractions', methods=['GET'])
+def get_extractions():
+    try:
+        if not db.conn:
+            db.connect()
+        limit = request.args.get('limit', 50, type=int)
+        extractions = db.cursor.execute(
+            'SELECT * FROM extractions ORDER BY extraction_date DESC LIMIT ?', (limit,)
+        ).fetchall()
+        return jsonify([dict(row) for row in extractions])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/extractions/<date>', methods=['DELETE'])
 def delete_extraction(date):
     try:
@@ -215,6 +228,18 @@ def login():
             'email': user['email'],
             'message': 'Login effettuato con successo'
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ============ ADMIN / MIGRAZIONE ============
+
+@app.route('/api/admin/migrate', methods=['POST'])
+def migrate_database():
+    try:
+        if not db.conn:
+            db.connect()
+        db.migrate_db()
+        return jsonify({'success': True, 'message': 'Migrazione database completata'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
