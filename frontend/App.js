@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, TextInput, Vibration } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, TextInput, Vibration, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { BarChart } from 'react-native-chart-kit';
 
 const Stack = createStackNavigator();
 const API_BASE_URL = 'https://superenalotto-api.onrender.com';
@@ -208,6 +209,7 @@ function ResultsScreen({ route }) {
   const { analysis } = route.params || {};
   useEffect(() => { Vibration.vibrate([0,100,50,100,50,100,200]); }, []);
   if (!analysis) return <View style={styles.container}><Text>Nessun risultato</Text></View>;
+  
   return (
     <ScrollView style={styles.container}>
       <View style={styles.resultHeader}>
@@ -232,6 +234,38 @@ function ResultsScreen({ route }) {
           <View style={styles.statCard}><Text style={styles.statIcon}>⭐</Text><Text style={styles.statValue}>{analysis.statistiche?.punteggio_massimo}</Text><Text style={styles.statLabel}>Max</Text></View>
         </View>
       </View>
+
+      <View style={styles.chartSection}>
+        <Text style={styles.sectionTitle}>📊 Frequenza Top 9</Text>
+        {analysis.top_9_numeri && analysis.analisi_dettagliata && (
+          <BarChart
+            data={{
+              labels: analysis.top_9_numeri.slice(0, 9).map(n => String(n)),
+              datasets: [{
+                data: analysis.top_9_numeri.slice(0, 9).map(n => {
+                  const found = analysis.analisi_dettagliata?.find(a => a.identificativo === n);
+                  return found?.frequenza_recente || 0;
+                })
+              }]
+            }}
+            width={Dimensions.get('window').width - 30}
+            height={200}
+            yAxisLabel=""
+            yAxisSuffix=""
+            chartConfig={{
+              backgroundColor: '#1a237e',
+              backgroundGradientFrom: '#1a237e',
+              backgroundGradientTo: '#283593',
+              decimalCount: 0,
+              color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              barPercentage: 0.6,
+            }}
+            style={{ borderRadius: 12, marginHorizontal: 15, marginBottom: 15 }}
+          />
+        )}
+      </View>
+
       <View style={styles.combinationsSection}>
         <Text style={styles.sectionTitle}>🎲 Migliori Sestine</Text>
         {analysis.migliori_sestine?.slice(0,10).map((combo, index) => (
@@ -370,6 +404,7 @@ const styles = StyleSheet.create({
   topBadge: { borderWidth: 2, borderColor: '#ffd700' },
   medalIcon: { fontSize: 16, position: 'absolute', top: -10, right: -5 },
   bestCombo: { borderWidth: 2, borderColor: '#ffd700' },
+  chartSection: { padding: 15, marginBottom: 15 },
   listHeader: { padding: 20, backgroundColor: '#fff', margin: 15, borderRadius: 12, alignItems: 'center' },
   extractionCard: { backgroundColor: '#fff', marginHorizontal: 15, marginBottom: 8, padding: 15, borderRadius: 10, elevation: 2 },
   extractionDate: { fontSize: 14, color: '#1a237e', fontWeight: 'bold', marginBottom: 5 },
