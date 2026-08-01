@@ -86,13 +86,14 @@ def health_check():
 def analyze_numbers():
     try:
         data = request.get_json() or {}
+        period = data.get('period', 'all')
+        
         if not db.conn:
             db.connect()
-        count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
-        if count == 0:
-            return jsonify({'error': 'Nessuna estrazione disponibile nel database'}), 400
+        
         analyzer = SuperEnalottoAnalyzer(db)
-        results = analyzer.perform_complete_analysis()
+        results = analyzer.perform_complete_analysis(period=period)
+        
         if 'error' in results:
             return jsonify(results), 400
         return jsonify(results)
