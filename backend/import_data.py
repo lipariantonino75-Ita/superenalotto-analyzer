@@ -198,4 +198,4 @@ if __name__ == '__main__':
         excel_path = os.path.join(data_dir, excel_files[int(choice)])
     
     # Avvia importazione
-    import_real_extractions(excel_path)s
+    import_real_extractions(excel_path)
