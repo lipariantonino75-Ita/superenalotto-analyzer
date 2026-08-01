@@ -31,4 +31,7 @@ yarn-error.log*
 *.pem 
 *.key 
 secrets.py 
-config.local.py 
+config.local.py
+
+# Android build
+android/
