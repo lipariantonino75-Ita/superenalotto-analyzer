@@ -2,39 +2,143 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 const Stack = createStackNavigator();
 const API_BASE_URL = 'https://superenalotto-api.onrender.com';
 
+// ============ LOGIN SCREEN ============
+function LoginScreen({ navigation }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    checkLogin();
+  }, []);
+
+  const checkLogin = async () => {
+    const user = await AsyncStorage.getItem('user');
+    if (user) {
+      navigation.replace('Home');
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Errore', 'Inserisci email e password');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
+      if (response.data.success) {
+        await AsyncStorage.setItem('user', JSON.stringify(response.data));
+        navigation.replace('Home');
+      }
+    } catch (error) {
+      Alert.alert('Errore', 'Credenziali non valide');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.loginHeader}>
+        <Text style={styles.title}>SuperEnalotto</Text>
+        <Text style={styles.titleSmall}>Analyzer</Text>
+        <Text style={styles.subtitle}>Accedi per continuare</Text>
+      </View>
+      <View style={styles.loginForm}>
+        <TextInput style={styles.input} placeholder="Email" value={email}
+          onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <TextInput style={styles.input} placeholder="Password" value={password}
+          onChangeText={setPassword} secureTextEntry />
+        <TouchableOpacity style={styles.analyzeButton} onPress={handleLogin} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Accesso...' : 'ACCEDI'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+          <Text style={styles.linkText}>Non hai un account? Registrati</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ============ REGISTER SCREEN ============
+function RegisterScreen({ navigation }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!email || !password) {
+      Alert.alert('Errore', 'Inserisci email e password');
+      return;
+    }
+    if (password.length < 4) {
+      Alert.alert('Errore', 'Password minima 4 caratteri');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/register`, { email, password });
+      if (response.data.success) {
+        Alert.alert('OK', 'Registrazione completata! Effettua il login.');
+        navigation.goBack();
+      }
+    } catch (error) {
+      Alert.alert('Errore', error.response?.data?.error || 'Registrazione fallita');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.loginHeader}>
+        <Text style={styles.title}>Registrazione</Text>
+        <Text style={styles.subtitle}>Crea il tuo account</Text>
+      </View>
+      <View style={styles.loginForm}>
+        <TextInput style={styles.input} placeholder="Email" value={email}
+          onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <TextInput style={styles.input} placeholder="Password (min 4 caratteri)" value={password}
+          onChangeText={setPassword} secureTextEntry />
+        <TouchableOpacity style={styles.analyzeButton} onPress={handleRegister} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Registrazione...' : 'REGISTRATI'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.linkText}>Hai già un account? Accedi</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ============ HOME SCREEN ============
 function HomeScreen({ navigation }) {
   const [totalExtractions, setTotalExtractions] = useState(null);
 
-  // Funzione con parametro per il refresh silenzioso
-  const fetchStats = async (isSilent = false) => {
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/stats`);
       setTotalExtractions(response.data.total_extractions);
     } catch (error) {
-      // Mostra l'errore in console solo se non è un ciclo in background
-      if (!isSilent) {
-        console.log('Errore statistiche');
-      }
+      console.log('Errore statistiche');
     }
   };
 
-  useEffect(() => {
-    // 1. Primo caricamento all'apertura della schermata
-    fetchStats(false);
-
-    // 2. Refresh silenzioso automatico ogni 30 secondi (30000 ms)
-    const interval = setInterval(() => {
-      fetchStats(true);
-    }, 30000);
-
-    // 3. Pulizia del timer quando si cambia schermata
-    return () => clearInterval(interval);
-  }, []);
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('user');
+    navigation.replace('Login');
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -67,11 +171,15 @@ function HomeScreen({ navigation }) {
       <TouchableOpacity style={styles.subscriptionButton} onPress={() => navigation.navigate('Subscription')}>
         <Text style={styles.buttonText}>💳 GESTISCI ABBONAMENTO</Text>
       </TouchableOpacity>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.buttonText}>🚪 LOGOUT</Text>
+      </TouchableOpacity>
       <Text style={styles.footer}>🆓 3 giorni di prova gratuita</Text>
     </ScrollView>
   );
 }
 
+// ============ ANALYSIS SCREEN ============
 function AnalysisScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const performAnalysis = async () => {
@@ -105,6 +213,7 @@ function AnalysisScreen({ navigation }) {
   );
 }
 
+// ============ RESULTS SCREEN ============
 function ResultsScreen({ route }) {
   const { analysis } = route.params || {};
   if (!analysis) return <View style={styles.container}><Text>Nessun risultato</Text></View>;
@@ -135,6 +244,7 @@ function ResultsScreen({ route }) {
   );
 }
 
+// ============ ADD EXTRACTION SCREEN ============
 function AddExtractionScreen({ navigation }) {
   const [date, setDate] = useState('');
   const [numbers, setNumbers] = useState(['', '', '', '', '', '']);
@@ -147,10 +257,7 @@ function AddExtractionScreen({ navigation }) {
     }
     setLoading(true);
     try {
-      await axios.post(`${API_BASE_URL}/api/extractions`, {
-        date: date,
-        numbers: numbers.map(Number)
-      });
+      await axios.post(`${API_BASE_URL}/api/extractions`, { date, numbers: numbers.map(Number) });
       Alert.alert('OK', 'Estrazione aggiunta!');
       navigation.goBack();
     } catch (error) {
@@ -186,6 +293,7 @@ function AddExtractionScreen({ navigation }) {
   );
 }
 
+// ============ SUBSCRIPTION SCREEN ============
 function SubscriptionScreen() {
   const plans = [
     { id: 'weekly', name: 'Settimanale', price: '2.99', days: 7 },
@@ -208,11 +316,14 @@ function SubscriptionScreen() {
   );
 }
 
+// ============ MAIN APP ============
 export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: '#1a237e' }, headerTintColor: '#fff' }}>
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'SuperEnalotto Analyzer' }} />
+        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Registrazione' }} />
+        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'SuperEnalotto Analyzer', headerLeft: () => null }} />
         <Stack.Screen name="Analysis" component={AnalysisScreen} options={{ title: 'Analisi' }} />
         <Stack.Screen name="Results" component={ResultsScreen} options={{ title: 'Risultati' }} />
         <Stack.Screen name="AddExtraction" component={AddExtractionScreen} options={{ title: 'Nuova Estrazione' }} />
@@ -222,11 +333,18 @@ export default function App() {
   );
 }
 
+// ============ STYLES ============
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   header: { backgroundColor: '#1a237e', padding: 40, alignItems: 'center' },
+  loginHeader: { backgroundColor: '#1a237e', padding: 60, alignItems: 'center' },
   title: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
+  titleSmall: { fontSize: 22, fontWeight: '300', color: '#fff' },
   subtitle: { fontSize: 14, color: '#b3b3b3', marginTop: 10 },
+  loginForm: { padding: 30, marginTop: 20 },
+  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 16, marginBottom: 15, backgroundColor: '#fff' },
+  linkText: { textAlign: 'center', marginTop: 20, color: '#1a237e', fontSize: 14 },
+  logoutButton: { backgroundColor: '#f44336', marginHorizontal: 15, marginTop: 10, padding: 18, borderRadius: 12, alignItems: 'center' },
   statsBadge: { backgroundColor: '#e8eaf6', padding: 15, marginHorizontal: 15, marginTop: -10, borderRadius: 10, alignItems: 'center' },
   statsBadgeText: { fontSize: 18, fontWeight: 'bold', color: '#1a237e' },
   statsBadgeSubtext: { fontSize: 12, color: '#666', marginTop: 3 },
@@ -256,7 +374,6 @@ const styles = StyleSheet.create({
   formHeader: { padding: 20, backgroundColor: '#fff', margin: 15, borderRadius: 12 },
   formGroup: { padding: 15, backgroundColor: '#fff', marginHorizontal: 15, marginBottom: 10, borderRadius: 12 },
   label: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, color: '#1a237e' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 16 },
   numbersInputRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   numberInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 18, width: 48, textAlign: 'center' },
   submitButton: { backgroundColor: '#ff9800', margin: 15, padding: 18, borderRadius: 12, alignItems: 'center' },

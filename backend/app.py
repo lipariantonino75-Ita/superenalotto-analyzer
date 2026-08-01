@@ -158,6 +158,66 @@ def delete_extraction(date):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ============ AUTENTICAZIONE ============
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({'error': 'Email e password richiesti'}), 400
+        
+        if len(password) < 4:
+            return jsonify({'error': 'Password minima 4 caratteri'}), 400
+        
+        if not db.conn:
+            db.connect()
+        
+        existing = db.cursor.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
+        if existing:
+            return jsonify({'error': 'Email già registrata'}), 400
+        
+        db.cursor.execute('INSERT INTO users (email, password, created_at) VALUES (?, ?, ?)',
+                         (email, password, datetime.now()))
+        db.conn.commit()
+        
+        return jsonify({'success': True, 'message': 'Registrazione completata con successo'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({'error': 'Email e password richiesti'}), 400
+        
+        if not db.conn:
+            db.connect()
+        
+        user = db.cursor.execute(
+            'SELECT id, email FROM users WHERE email = ? AND password = ?',
+            (email, password)
+        ).fetchone()
+        
+        if not user:
+            return jsonify({'error': 'Credenziali non valide'}), 401
+        
+        return jsonify({
+            'success': True,
+            'user_id': user['id'],
+            'email': user['email'],
+            'message': 'Login effettuato con successo'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
