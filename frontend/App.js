@@ -32,6 +32,7 @@ function SplashScreen({ navigation }) {
 function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { checkLogin(); }, []);
@@ -59,10 +60,25 @@ function LoginScreen({ navigation }) {
         <Text style={styles.subtitle}>Accedi per continuare</Text>
       </View>
       <View style={styles.loginForm}>
-        <View style={styles.inputRow}><Text style={styles.inputIcon}>📧</Text><TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" /></View>
-        <View style={styles.inputRow}><Text style={styles.inputIcon}>🔒</Text><TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry /></View>
-        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}><Text style={styles.buttonText}>{loading ? '⏳ Accesso...' : '🔓 ACCEDI'}</Text></TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}><Text style={styles.linkText}>📝 Non hai un account? Registrati</Text></TouchableOpacity>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputIcon}>📧</Text>
+          <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} 
+            keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#999" />
+        </View>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputIcon}>🔒</Text>
+          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} 
+            secureTextEntry={!showPassword} placeholderTextColor="#999" />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+            <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? '⏳ Accesso...' : '🔓 ACCEDI'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+          <Text style={styles.linkText}>📝 Non hai un account? Registrati</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -72,6 +88,7 @@ function LoginScreen({ navigation }) {
 function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -93,10 +110,25 @@ function RegisterScreen({ navigation }) {
         <Text style={styles.subtitle}>Crea il tuo account</Text>
       </View>
       <View style={styles.loginForm}>
-        <View style={styles.inputRow}><Text style={styles.inputIcon}>📧</Text><TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" /></View>
-        <View style={styles.inputRow}><Text style={styles.inputIcon}>🔒</Text><TextInput style={styles.input} placeholder="Password (min 4)" value={password} onChangeText={setPassword} secureTextEntry /></View>
-        <TouchableOpacity style={styles.loginBtn} onPress={handleRegister} disabled={loading}><Text style={styles.buttonText}>{loading ? '⏳ Registrazione...' : '✅ REGISTRATI'}</Text></TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.linkText}>🔙 Hai già un account? Accedi</Text></TouchableOpacity>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputIcon}>📧</Text>
+          <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} 
+            keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#999" />
+        </View>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputIcon}>🔒</Text>
+          <TextInput style={styles.input} placeholder="Password (min 4)" value={password} onChangeText={setPassword} 
+            secureTextEntry={!showPassword} placeholderTextColor="#999" />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+            <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.loginBtn} onPress={handleRegister} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? '⏳ Registrazione...' : '✅ REGISTRATI'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.linkText}>🔙 Hai già un account? Accedi</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -254,9 +286,9 @@ function AddExtractionScreen({ navigation }) {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.formHeader}><Text style={styles.formIcon}>➕</Text><Text style={styles.sectionTitle}>Nuova Estrazione</Text></View>
-      <View style={styles.formGroup}><Text style={styles.label}>📅 Data (AAAA-MM-GG)</Text><TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="2026-08-01" /></View>
+      <View style={styles.formGroup}><Text style={styles.label}>📅 Data (AAAA-MM-GG)</Text><TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="2026-08-01" placeholderTextColor="#999" /></View>
       <View style={styles.formGroup}><Text style={styles.label}>🎱 6 Numeri (1-90)</Text>
-        <View style={styles.numbersInputRow}>{numbers.map((n,i)=>(<TextInput key={i} style={styles.numberInput} value={n} onChangeText={t=>{let m=[...numbers];m[i]=t;setNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} />))}</View>
+        <View style={styles.numbersInputRow}>{numbers.map((n,i)=>(<TextInput key={i} style={styles.numberInput} value={n} onChangeText={t=>{let m=[...numbers];m[i]=t;setNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999" />))}</View>
       </View>
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Salvataggio...':'💾 SALVA ESTRAZIONE'}</Text></TouchableOpacity>
     </ScrollView>
@@ -308,7 +340,9 @@ const styles = StyleSheet.create({
   loginForm: { padding: 30, marginTop: 20 },
   inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
   inputIcon: { fontSize: 20, marginRight: 10 },
-  input: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: '#fff' },
+  input: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: '#fff', color: '#000' },
+  eyeButton: { padding: 10 },
+  eyeIcon: { fontSize: 22 },
   loginBtn: { backgroundColor: '#4caf50', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   linkText: { textAlign: 'center', marginTop: 20, color: '#1a237e', fontSize: 14 },
   header: { backgroundColor: '#1a237e', padding: 30, alignItems: 'center' },
@@ -375,7 +409,7 @@ const styles = StyleSheet.create({
   formGroup: { padding: 15, backgroundColor: '#fff', marginHorizontal: 15, marginBottom: 10, borderRadius: 12 },
   label: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, color: '#1a237e' },
   numbersInputRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  numberInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 18, width: 48, textAlign: 'center' },
+  numberInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 18, width: 48, textAlign: 'center', color: '#000' },
   submitButton: { backgroundColor: '#ff9800', margin: 15, padding: 18, borderRadius: 12, alignItems: 'center' },
   subscriptionHeader: { padding: 30, alignItems: 'center', backgroundColor: '#1a237e' },
   planCard: { backgroundColor: '#fff', marginHorizontal: 15, marginTop: 15, padding: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 5, elevation: 2 },
