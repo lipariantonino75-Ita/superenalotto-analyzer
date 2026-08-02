@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, TextInput, Vibration, Dimensions, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, TextInput, Vibration, Dimensions, useColorScheme, Platform, BackHandler } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { BarChart } from 'react-native-chart-kit';
@@ -64,8 +64,15 @@ function SplashScreen({ navigation }) {
   useEffect(() => {
     registerForPushNotificationsAsync();
     setTimeout(async () => {
+      const termsAccepted = await AsyncStorage.getItem('termsAccepted');
       const user = await AsyncStorage.getItem('user');
-      navigation.replace(user ? 'Home' : 'Login');
+      if (!termsAccepted) {
+        navigation.replace('Terms');
+      } else if (user) {
+        navigation.replace('Home');
+      } else {
+        navigation.replace('Login');
+      }
     }, 2000);
   }, []);
   return (
@@ -79,6 +86,89 @@ function SplashScreen({ navigation }) {
   );
 }
 
+// ============ TERMINI ============
+function TermsScreen({ navigation }) {
+  const [isMinor, setIsMinor] = useState(null);
+  const { isDark } = useTheme();
+  const theme = isDark ? darkTheme : lightTheme;
+
+  const handleAccept = async () => {
+    if (isMinor === null) {
+      Vibration.vibrate(200);
+      Alert.alert('⚠️ Età richiesta', 'Seleziona se sei maggiorenne o minorenne per continuare.');
+      return;
+    }
+    await AsyncStorage.setItem('termsAccepted', 'true');
+    await AsyncStorage.setItem('isAdult', isMinor ? 'false' : 'true');
+    if (isMinor) {
+      Alert.alert('🔞 Attenzione', 'Come minorenne, puoi usare l\'app solo per scopi statistici ed educativi. Il gioco d\'azzardo è vietato ai minori di 18 anni.', [{ text: 'Ho capito', onPress: () => navigation.replace('Login') }]);
+    } else {
+      navigation.replace('Login');
+    }
+  };
+
+  const handleRefuse = () => {
+    Alert.alert('Accesso negato', 'Devi accettare i termini per utilizzare l\'app.', [
+      { text: 'Riprova', style: 'cancel' },
+      { text: 'Esci', onPress: () => BackHandler.exitApp() }
+    ]);
+  };
+
+  return (
+    <ScrollView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <View style={[styles.loginHeader, { backgroundColor: theme.header }]}>
+        <Text style={styles.loginIcon}>📜</Text>
+        <Text style={styles.title}>Termini di Utilizzo</Text>
+        <Text style={styles.subtitle}>Leggi e accetta per continuare</Text>
+      </View>
+
+      <View style={[styles.termsCard, { backgroundColor: theme.card }]}>
+        <Text style={[styles.termsTitle, { color: theme.text }]}>📋 Condizioni d'uso</Text>
+        <Text style={[styles.termsText, { color: theme.subtext }]}>Benvenuto in SuperEnalotto Analyzer. Utilizzando questa app, accetti i seguenti termini:</Text>
+        
+        <Text style={[styles.termsSubtitle, { color: theme.text }]}>1. Scopo dell'App</Text>
+        <Text style={[styles.termsText, { color: theme.subtext }]}>Questa app fornisce analisi statistiche sui numeri del SuperEnalotto a scopo informativo e di intrattenimento. Non garantisce vincite e non costituisce un servizio di consulenza per il gioco d'azzardo.</Text>
+
+        <Text style={[styles.termsSubtitle, { color: theme.text }]}>2. Gioco Responsabile</Text>
+        <Text style={[styles.termsText, { color: theme.subtext }]}>Il gioco d'azzardo può causare dipendenza. Gioca in modo responsabile e non superare mai i tuoi limiti. Se hai problemi con il gioco, contatta il numero verde 800 558 822.</Text>
+
+        <Text style={[styles.termsSubtitle, { color: theme.text }]}>3. Età minima</Text>
+        <Text style={[styles.termsText, { color: theme.subtext }]}>In Italia, il gioco d'azzardo è vietato ai minori di 18 anni. Se sei minorenne, puoi utilizzare l'app solo per scopi statistici ed educativi, con il consenso di un genitore.</Text>
+
+        <Text style={[styles.termsSubtitle, { color: theme.text }]}>4. Privacy</Text>
+        <Text style={[styles.termsText, { color: theme.subtext }]}>I tuoi dati (email e password) sono utilizzati solo per l'accesso all'app. Non condividiamo i tuoi dati con terze parti. Le analisi sono anonime.</Text>
+
+        <Text style={[styles.termsSubtitle, { color: theme.text }]}>5. Limitazione di responsabilità</Text>
+        <Text style={[styles.termsText, { color: theme.subtext }]}>L'app non si assume responsabilità per eventuali perdite economiche derivanti dall'uso delle informazioni fornite. Le analisi sono basate su dati statistici e non costituiscono previsioni certe.</Text>
+      </View>
+
+      <View style={[styles.ageCard, { backgroundColor: theme.card }]}>
+        <Text style={[styles.termsSubtitle, { color: theme.text }]}>🎂 Età dell'utente</Text>
+        <View style={styles.ageRow}>
+          <TouchableOpacity style={[styles.ageButton, { backgroundColor: isMinor === false ? '#4caf50' : theme.badge }]} onPress={() => setIsMinor(false)}>
+            <Text style={[styles.ageButtonText, { color: isMinor === false ? '#fff' : theme.text }]}>✅ Maggiorenne</Text>
+            <Text style={[styles.ageSubtext, { color: isMinor === false ? '#e0e0e0' : theme.subtext }]}>18+</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.ageButton, { backgroundColor: isMinor === true ? '#ff9800' : theme.badge }]} onPress={() => setIsMinor(true)}>
+            <Text style={[styles.ageButtonText, { color: isMinor === true ? '#fff' : theme.text }]}>🔞 Minorenne</Text>
+            <Text style={[styles.ageSubtext, { color: isMinor === true ? '#e0e0e0' : theme.subtext }]}>&lt;18</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={styles.refuseButton} onPress={handleRefuse}>
+          <Text style={styles.buttonText}>❌ RIFIUTA</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
+          <Text style={styles.buttonText}>✅ ACCETTA</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={[styles.footer, { color: theme.subtext }]}>⚖️ Accedendo accetti i termini del servizio</Text>
+    </ScrollView>
+  );
+}
+
 // ============ LOGIN ============
 function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -87,11 +177,7 @@ function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const { isDark } = useTheme();
   const theme = isDark ? darkTheme : lightTheme;
-  useEffect(() => { checkLogin(); }, []);
-  const checkLogin = async () => {
-    const user = await AsyncStorage.getItem('user');
-    if (user) navigation.replace('Home');
-  };
+
   const handleLogin = async () => {
     if (!email || !password) { Vibration.vibrate(200); Alert.alert('Errore', 'Inserisci email e password'); return; }
     setLoading(true);
@@ -101,6 +187,7 @@ function LoginScreen({ navigation }) {
     } catch (e) { Vibration.vibrate([0,100,100,100]); Alert.alert('Errore', 'Credenziali non valide'); }
     finally { setLoading(false); }
   };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={[styles.loginHeader, { backgroundColor: theme.header }]}>
@@ -127,6 +214,7 @@ function RegisterScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const { isDark } = useTheme();
   const theme = isDark ? darkTheme : lightTheme;
+  
   const handleRegister = async () => {
     if (!email || !password) { Vibration.vibrate(200); Alert.alert('Errore', 'Inserisci email e password'); return; }
     if (password.length < 4) { Alert.alert('Errore', 'Password minima 4 caratteri'); return; }
@@ -137,6 +225,7 @@ function RegisterScreen({ navigation }) {
     } catch (e) { Vibration.vibrate([0,100,100,100]); Alert.alert('Errore', e.response?.data?.error || 'Registrazione fallita'); }
     finally { setLoading(false); }
   };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={[styles.loginHeader, { backgroundColor: theme.header }]}><Text style={styles.loginIcon}>📝</Text><Text style={styles.title}>Registrazione</Text><Text style={styles.subtitle}>Crea il tuo account</Text></View>
@@ -156,13 +245,15 @@ function HomeScreen({ navigation }) {
   const [user, setUser] = useState(null);
   const { isDark, setIsDark } = useTheme();
   const theme = isDark ? darkTheme : lightTheme;
+  
   useEffect(() => { fetchStats(); loadUser(); }, []);
   const loadUser = async () => { const u = await AsyncStorage.getItem('user'); if (u) setUser(JSON.parse(u)); };
   const fetchStats = async () => { try { const r = await axios.get(`${API_BASE_URL}/api/stats`); setTotalExtractions(r.data.total_extractions); } catch (e) {} };
   const handleLogout = async () => { await AsyncStorage.removeItem('user'); navigation.replace('Login'); };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.bg }]}>
-      <View style={[styles.header, { backgroundColor: theme.header }]}><Text style={styles.headerIcon}>🎯</Text><Text style={styles.title}>SuperEnalotto Analyzer</Text>{user && <Text style={styles.welcomeText}>👋 Benvenuto, {user.email}</Text>}<Text style={styles.subtitle}>Analisi statistica - 14 fattori</Text></View>
+      <View style={[styles.header, { backgroundColor: theme.header }]}><Text style={styles.headerIcon}>🎯</Text><Text style={styles.title}>SuperEnalotto Analyzer</Text>{user && <Text style={styles.welcomeText}>👋 Benvenuto, {user.email}</Text>}<Text style={styles.subtitle}>Analisi statistica - 10 fattori</Text></View>
       <View style={[styles.statsBadge, { backgroundColor: theme.badge }]}><Text style={styles.statsBadgeIcon}>📊</Text><Text style={[styles.statsBadgeText, { color: theme.badgeText }]}>{totalExtractions ? totalExtractions.toLocaleString() : '...'} estrazioni analizzate</Text><Text style={styles.statsBadgeSubtext}>📅 dal 1997 ad oggi</Text></View>
       <View style={styles.menuGrid}>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('Analysis')}><Text style={styles.menuIcon}>🔮</Text><Text style={[styles.menuText, { color: theme.text }]}>Nuova Analisi</Text></TouchableOpacity>
@@ -171,7 +262,7 @@ function HomeScreen({ navigation }) {
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('Subscription')}><Text style={styles.menuIcon}>💳</Text><Text style={[styles.menuText, { color: theme.text }]}>Abbonamento</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => setIsDark(!isDark)}><Text style={styles.menuIcon}>{isDark ? '☀️' : '🌙'}</Text><Text style={[styles.menuText, { color: theme.text }]}>{isDark ? 'Chiaro' : 'Scuro'}</Text></TouchableOpacity>
       </View>
-      <View style={[styles.features, { backgroundColor: theme.card }]}><Text style={[styles.sectionTitle, { color: theme.text }]}>⚡ Fattori di Analisi</Text><View style={styles.featureGrid}>{['🎯 1-90','📊 Decine','🔥 Hot/Cold','📈 C/E','⏱️ Ritardi','💪 Forza','✅ Stato','💯 Punteggio'].map((f,i)=>(<View key={i} style={[styles.featureBadge, { backgroundColor: theme.badge }]}><Text style={[styles.featureBadgeText, { color: theme.badgeText }]}>{f}</Text></View>))}</View></View>
+      <View style={[styles.features, { backgroundColor: theme.card }]}><Text style={[styles.sectionTitle, { color: theme.text }]}>⚡ Fattori di Analisi</Text><View style={styles.featureGrid}>{['🎯 1-90','📊 Decine','🔥 Hot/Cold','📈 C/E','⏱️ Ritardi','💪 Forza','🎯 LeggeTerzo','🕵️ Spia','💯 Punteggio'].map((f,i)=>(<View key={i} style={[styles.featureBadge, { backgroundColor: theme.badge }]}><Text style={[styles.featureBadgeText, { color: theme.badgeText }]}>{f}</Text></View>))}</View></View>
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}><Text style={styles.buttonText}>🚪 LOGOUT</Text></TouchableOpacity>
       <Text style={[styles.footer, { color: theme.subtext }]}>🆓 3 giorni di prova gratuita</Text>
     </ScrollView>
@@ -202,7 +293,7 @@ function AnalysisScreen({ navigation }) {
   };
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      <View style={[styles.analysisHeader, { backgroundColor: theme.card }]}><Text style={styles.analysisIcon}>🔮</Text><Text style={[styles.sectionTitle, { color: theme.text }]}>Analisi Statistica</Text><Text style={[styles.description, { color: theme.subtext }]}>Seleziona il periodo e analizza 90 numeri con 14 fattori.</Text></View>
+      <View style={[styles.analysisHeader, { backgroundColor: theme.card }]}><Text style={styles.analysisIcon}>🔮</Text><Text style={[styles.sectionTitle, { color: theme.text }]}>Analisi Statistica</Text><Text style={[styles.description, { color: theme.subtext }]}>Seleziona il periodo e analizza 90 numeri con 10 fattori.</Text></View>
       <View style={styles.periodSection}>
         <Text style={[styles.label, { color: theme.text }]}>📅 Periodo di analisi</Text>
         <View style={styles.periodGrid}>
@@ -214,7 +305,7 @@ function AnalysisScreen({ navigation }) {
         </View>
       </View>
       {loading ? (
-        <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#1a237e" /><Text style={[styles.loadingText, { color: theme.text }]}>🔄 Analisi in corso...</Text><Text style={styles.loadingSubtext}>Elaborazione 14 fattori statistici</Text></View>
+        <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#1a237e" /><Text style={[styles.loadingText, { color: theme.text }]}>🔄 Analisi in corso...</Text><Text style={styles.loadingSubtext}>Elaborazione 10 fattori statistici</Text></View>
       ) : (
         <TouchableOpacity style={styles.bigAnalyzeButton} onPress={performAnalysis}>
           <Text style={styles.bigButtonIcon}>🔮</Text><Text style={styles.bigButtonText}>AVVIA ANALISI COMPLETA</Text>
@@ -302,131 +393,4 @@ function SubscriptionScreen() {
     <ScrollView style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={[styles.subscriptionHeader, { backgroundColor: theme.header }]}><Text style={styles.subscriptionIcon}>💎</Text><Text style={styles.title}>Piani Abbonamento</Text><Text style={styles.subtitle}>✅ 3 giorni di prova gratuita</Text></View>
       {[{id:'weekly',name:'📅 Settimanale',price:'2.99',days:7,color:'#4caf50'},{id:'monthly',name:'📅 Mensile',price:'9.99',days:30,color:'#2196f3'},{id:'annual',name:'📅 Annuale',price:'79.99',days:365,color:'#9c27b0'}].map(p=>(<TouchableOpacity key={p.id} style={[styles.planCard,{borderLeftColor:p.color,backgroundColor:theme.card}]}><View style={styles.planInfo}><Text style={[styles.planName,{color:theme.text}]}>{p.name}</Text><Text style={[styles.planDuration,{color:theme.subtext}]}>⏱️ {p.days} giorni</Text></View><View style={styles.planPriceContainer}><Text style={[styles.planPrice,{color:p.color}]}>€{p.price}</Text></View></TouchableOpacity>))}
-      <View style={[styles.trialInfo, { backgroundColor: theme.badge }]}><Text style={styles.trialText}>🆓 3 giorni di prova gratuita</Text><Text style={styles.trialSubtext}>Nessun impegno, disdici quando vuoi</Text></View>
-    </ScrollView>
-  );
-}
-
-// ============ MAIN APP ============
-export default function App() {
-  const colorScheme = useColorScheme();
-  const [isDark, setIsDark] = useState(colorScheme === 'dark');
-  return (
-    <ThemeContext.Provider value={{ isDark, setIsDark }}>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: isDark ? '#000' : '#1a237e' }, headerTintColor: '#fff' }}>
-          <Stack.Screen name="Splash" component={SplashScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Register" component={RegisterScreen} options={{ title: '📝 Registrazione' }} />
-          <Stack.Screen name="Home" component={HomeScreen} options={{ title: '🏠 Home', headerLeft: () => null }} />
-          <Stack.Screen name="Analysis" component={AnalysisScreen} options={{ title: '🔮 Analisi' }} />
-          <Stack.Screen name="Results" component={ResultsScreen} options={{ title: '🏆 Risultati' }} />
-          <Stack.Screen name="ExtractionList" component={ExtractionListScreen} options={{ title: '📋 Archivio' }} />
-          <Stack.Screen name="AddExtraction" component={AddExtractionScreen} options={{ title: '➕ Nuova Estrazione' }} />
-          <Stack.Screen name="Subscription" component={SubscriptionScreen} options={{ title: '💎 Abbonamento' }} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </ThemeContext.Provider>
-  );
-}
-
-// ============ STYLES ============
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  splashEmoji: { fontSize: 80, marginBottom: 10 },
-  splashTitle: { fontSize: 36, fontWeight: 'bold', color: '#fff' },
-  splashSubtitle: { fontSize: 20, color: '#b3b3b3', marginTop: 5 },
-  splashLoading: { color: '#fff', marginTop: 20, fontSize: 14 },
-  loginHeader: { padding: 60, alignItems: 'center' },
-  loginIcon: { fontSize: 60, marginBottom: 10 },
-  loginForm: { padding: 30, marginTop: 20 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  inputIcon: { fontSize: 20, marginRight: 10 },
-  input: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 16 },
-  eyeButton: { padding: 10 },
-  eyeIcon: { fontSize: 22 },
-  loginBtn: { backgroundColor: '#4caf50', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
-  linkText: { textAlign: 'center', marginTop: 20, fontSize: 14 },
-  header: { padding: 30, alignItems: 'center' },
-  headerIcon: { fontSize: 50, marginBottom: 5 },
-  welcomeText: { fontSize: 12, color: '#b3b3b3', marginTop: 5 },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 15, gap: 10 },
-  menuItem: { borderRadius: 15, padding: 20, alignItems: 'center', width: '47%', elevation: 3 },
-  menuIcon: { fontSize: 35, marginBottom: 8 },
-  menuText: { fontSize: 13, fontWeight: 'bold', textAlign: 'center' },
-  featureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  featureBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  featureBadgeText: { fontSize: 12, fontWeight: '500' },
-  statsBadge: { padding: 15, marginHorizontal: 15, marginTop: -10, borderRadius: 10, alignItems: 'center' },
-  statsBadgeIcon: { fontSize: 25 },
-  statsBadgeText: { fontSize: 18, fontWeight: 'bold' },
-  statsBadgeSubtext: { fontSize: 12, color: '#666', marginTop: 3 },
-  features: { padding: 20, margin: 15, borderRadius: 15 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
-  analysisIcon: { fontSize: 60, textAlign: 'center', marginBottom: 10 },
-  periodSection: { padding: 15 },
-  periodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  periodButton: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  periodButtonText: { fontSize: 13, fontWeight: '500' },
-  bigAnalyzeButton: { backgroundColor: '#4caf50', margin: 20, padding: 30, borderRadius: 20, alignItems: 'center', elevation: 5 },
-  bigButtonIcon: { fontSize: 50, marginBottom: 10 },
-  bigButtonText: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  bigButtonSubText: { color: '#e0e0e0', fontSize: 12, marginTop: 5 },
-  resultIcon: { fontSize: 50, marginBottom: 10 },
-  topBadge: { borderWidth: 2, borderColor: '#ffd700' },
-  medalIcon: { fontSize: 16, position: 'absolute', top: -10, right: -5 },
-  bestCombo: { borderWidth: 2, borderColor: '#ffd700' },
-  chartSection: { padding: 15, marginBottom: 15 },
-  listHeader: { padding: 20, margin: 15, borderRadius: 12, alignItems: 'center' },
-  extractionCard: { marginHorizontal: 15, marginBottom: 8, padding: 15, borderRadius: 10, elevation: 2 },
-  extractionDate: { fontSize: 14, fontWeight: 'bold', marginBottom: 5 },
-  extractionNumbers: { fontSize: 18, fontWeight: '500' },
-  extractionExtra: { fontSize: 12, color: '#666', marginTop: 3 },
-  formIcon: { fontSize: 50, textAlign: 'center', marginBottom: 10 },
-  subscriptionIcon: { fontSize: 50, marginBottom: 10 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
-  titleSmall: { fontSize: 22, fontWeight: '300', color: '#fff' },
-  subtitle: { fontSize: 14, color: '#b3b3b3', marginTop: 10 },
-  description: { fontSize: 14, color: '#666', marginTop: 10, textAlign: 'center' },
-  buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  footer: { textAlign: 'center', marginTop: 20, marginBottom: 30 },
-  logoutButton: { backgroundColor: '#f44336', marginHorizontal: 15, marginTop: 15, padding: 15, borderRadius: 12, alignItems: 'center' },
-  analysisHeader: { padding: 20, margin: 15, borderRadius: 12, alignItems: 'center' },
-  loadingContainer: { alignItems: 'center', padding: 60 },
-  loadingText: { fontSize: 18, marginTop: 20, fontWeight: 'bold' },
-  loadingSubtext: { fontSize: 13, color: '#666', marginTop: 8 },
-  resultHeader: { padding: 25, alignItems: 'center' },
-  resultTitle: { fontSize: 22, color: '#fff', fontWeight: 'bold', marginBottom: 20 },
-  numbersGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
-  numberBadge: { backgroundColor: '#fff', borderRadius: 15, padding: 12, alignItems: 'center', width: 65, elevation: 3 },
-  rankText: { fontSize: 10, color: '#666', fontWeight: 'bold' },
-  numberText: { fontSize: 24, fontWeight: 'bold', color: '#1a237e' },
-  combinationsSection: { padding: 15 },
-  comboCard: { padding: 18, marginVertical: 6, borderRadius: 12, elevation: 2 },
-  comboTitle: { fontSize: 16, fontWeight: 'bold' },
-  comboNumbers: { fontSize: 18, marginTop: 8, fontWeight: '500' },
-  comboScore: { fontSize: 14, color: '#4caf50', marginTop: 5, fontWeight: 'bold' },
-  statsSection: { padding: 15 },
-  statsGrid: { flexDirection: 'row', justifyContent: 'space-around', gap: 10 },
-  statCard: { padding: 20, borderRadius: 12, alignItems: 'center', flex: 1, elevation: 2 },
-  statIcon: { fontSize: 25, marginBottom: 5 },
-  statValue: { fontSize: 28, fontWeight: 'bold' },
-  statLabel: { fontSize: 12, color: '#666', marginTop: 5 },
-  formHeader: { padding: 20, margin: 15, borderRadius: 12, alignItems: 'center' },
-  formGroup: { padding: 15, marginHorizontal: 15, marginBottom: 10, borderRadius: 12 },
-  label: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
-  numbersInputRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  numberInput: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 18, width: 48, textAlign: 'center' },
-  submitButton: { backgroundColor: '#ff9800', margin: 15, padding: 18, borderRadius: 12, alignItems: 'center' },
-  subscriptionHeader: { padding: 30, alignItems: 'center' },
-  planCard: { marginHorizontal: 15, marginTop: 15, padding: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 5, elevation: 2 },
-  planInfo: { flex: 1 },
-  planName: { fontSize: 20, fontWeight: 'bold' },
-  planDuration: { fontSize: 14, marginTop: 5 },
-  planPriceContainer: { alignItems: 'flex-end' },
-  planPrice: { fontSize: 28, fontWeight: 'bold' },
-  trialInfo: { margin: 30, alignItems: 'center', padding: 20, borderRadius: 12 },
-  trialText: { fontSize: 18, fontWeight: 'bold', color: '#2e7d32' },
-  trialSubtext: { fontSize: 14, color: '#666', marginTop: 5 },
-});
+      <View style={[styles.trialInfo, { backgroundColor: theme.badge }]}><Text style={styles.trialText
