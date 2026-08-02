@@ -124,7 +124,6 @@ class SuperEnalottoAnalyzer:
         return max(0, min(bonus, 100))
     
     def calculate_terzo_law(self, extractions, cycle_size=None):
-        """Calcola la Legge del Terzo per ogni numero"""
         if cycle_size is None:
             cycle_size = self.config.get('terzo_cycle_size', 15)
         
@@ -140,7 +139,6 @@ class SuperEnalottoAnalyzer:
                 
                 appearances = sum(1 for e in ciclo_extractions 
                                 if num in [e[f'n{i}'] for i in range(1, 7)])
-                
                 peso_ciclo = num_cicli - ciclo
                 
                 if appearances == 0:
@@ -159,96 +157,179 @@ class SuperEnalottoAnalyzer:
         
         return terzo_scores
 
-    # ============ AMBI FREQUENTI ============
-    def calculate_frequent_pairs(self, extractions, top_n=15):
-        """Calcola gli ambi più frequenti"""
-        pairs = Counter()
-        for e in extractions[:500]:
-            nums = sorted([e[f'n{i}'] for i in range(1, 7)])
-            for i in range(len(nums)):
-                for j in range(i+1, len(nums)):
-                    pairs[(nums[i], nums[j])] += 1
-        return pairs.most_common(top_n)
-
-    # ============ TERNI FREQUENTI ============
-    def calculate_frequent_triplets(self, extractions, top_n=10):
-        """Calcola i terni più frequenti"""
-        triplets = Counter()
-        for e in extractions[:300]:
-            nums = sorted([e[f'n{i}'] for i in range(1, 7)])
-            for i in range(len(nums)):
-                for j in range(i+1, len(nums)):
-                    for k in range(j+1, len(nums)):
-                        triplets[(nums[i], nums[j], nums[k])] += 1
-        return triplets.most_common(top_n)
-
-    # ============ QUATERNE FREQUENTI ============
-    def calculate_frequent_quads(self, extractions, top_n=5):
-        """Calcola le quaterne più frequenti"""
-        quads = Counter()
-        for e in extractions[:200]:
-            nums = sorted([e[f'n{i}'] for i in range(1, 7)])
-            for i in range(len(nums)):
-                for j in range(i+1, len(nums)):
-                    for k in range(j+1, len(nums)):
-                        for l in range(k+1, len(nums)):
-                            quads[(nums[i], nums[j], nums[k], nums[l])] += 1
-        return quads.most_common(top_n)
-
-    # ============ NUMERI SPIA ============
-    def calculate_spy_numbers(self, extractions):
-        """Quando esce un numero, quali numeri escono dopo?"""
-        spy_map = defaultdict(Counter)
+    # ============ ANALISI PER GRUPPO/DECINA ============
+    def analyze_by_group(self, extractions):
+        group_stats = {}
+        total = len(extractions)
         
-        for i in range(len(extractions) - 1):
-            current = [extractions[i][f'n{j}'] for j in range(1, 7)]
-            next_ext = [extractions[i+1][f'n{j}'] for j in range(1, 7)]
-            for num in current:
-                for next_num in next_ext:
-                    if next_num != num:
-                        spy_map[num][next_num] += 1
-        
-        spy_numbers = {}
-        for num in range(1, 91):
-            if num in spy_map:
-                spy_numbers[num] = spy_map[num].most_common(5)
+        for group_name, numbers in self.groups.items():
+            freq = 0
+            delay = 0
+            
+            for e in extractions:
+                nums = [e[f'n{i}'] for i in range(1, 7)]
+                if any(n in nums for n in numbers):
+                    freq += 1
+                    break
+                delay += 1
+            
+            avg_freq = round(freq / len(numbers), 1) if len(numbers) > 0 else 0
+            
+            if avg_freq > total * 0.07:
+                status = 'HOT'
+            elif avg_freq < total * 0.03:
+                status = 'COLD'
             else:
-                spy_numbers[num] = []
+                status = 'NEUTRAL'
+            
+            group_stats[group_name] = {
+                'frequenza_totale': freq,
+                'frequenza_media': avg_freq,
+                'ritardo': delay,
+                'stato': status,
+                'numeri': list(numbers)
+            }
         
-        return spy_numbers
+        return group_stats
 
-    def calculate_spy_score(self, number, spy_numbers, last_extraction):
-        """Calcola punteggio basato sui numeri spia dall'ultima estrazione"""
-        if not last_extraction:
-            return 0
+    # ============ PATTERN DI SEQUENZA ============
+    def analyze_patterns(self, extractions):
+        patterns = {
+            'pari_dispari': {}, 'alto_basso': {}, 'consecutivi': {},
+            'somma': {}, 'range': {}, 'ultima_cifra': {}, 'multipli': {},
+            'distanza_media': 0, 'suggerimenti': [],
+        }
         
-        last_numbers = [last_extraction[f'n{i}'] for i in range(1, 7)]
-        score = 0
+        n = min(500, len(extractions))
+        sample = extractions[:n]
         
-        for last_num in last_numbers:
-            if last_num in spy_numbers:
-                for spy_num, freq in spy_numbers[last_num]:
-                    if spy_num == number:
-                        score += freq * 10
+        total_pari = 0
+        total_bassi = 0
+        misti_count = 0
+        consecutivi_count = 0
+        somme = []
+        ranges = []
+        multipli_5_count = 0
+        multipli_10_count = 0
+        ultima_cifra_count = Counter()
+        distanze_totali = 0
+        pari_dispari_patterns = Counter()
+        alto_basso_patterns = Counter()
         
-        return min(score, 100)
+        for e in sample:
+            nums = [e[f'n{i}'] for i in range(1, 7)]
+            sorted_nums = sorted(nums)
+            
+            pari = sum(1 for n in nums if n % 2 == 0)
+            total_pari += pari
+            pari_dispari_patterns[f"{pari}P-{6-pari}D"] += 1
+            if 2 <= pari <= 4:
+                misti_count += 1
+            
+            bassi = sum(1 for n in nums if n <= 45)
+            total_bassi += bassi
+            alto_basso_patterns[f"{bassi}B-{6-bassi}A"] += 1
+            
+            has_consecutivi = any(sorted_nums[i+1] - sorted_nums[i] == 1 for i in range(len(sorted_nums)-1))
+            if has_consecutivi:
+                consecutivi_count += 1
+            
+            somme.append(sum(nums))
+            ranges.append(max(nums) - min(nums))
+            
+            for n in nums:
+                if n % 5 == 0: multipli_5_count += 1
+                if n % 10 == 0: multipli_10_count += 1
+                ultima_cifra_count[n % 10] += 1
+            
+            for i in range(len(sorted_nums) - 1):
+                distanze_totali += sorted_nums[i+1] - sorted_nums[i]
+        
+        patterns['pari_dispari'] = {
+            'media_pari': round(total_pari / n, 1),
+            'media_dispari': round((6*n - total_pari) / n, 1),
+            'percentuale_misti': round((misti_count / n) * 100, 1),
+            'pattern_piu_frequente': pari_dispari_patterns.most_common(3),
+        }
+        patterns['alto_basso'] = {
+            'media_bassi': round(total_bassi / n, 1),
+            'media_alti': round((6*n - total_bassi) / n, 1),
+            'pattern_piu_frequente': alto_basso_patterns.most_common(3),
+        }
+        patterns['consecutivi'] = {'percentuale': round((consecutivi_count / n) * 100, 1)}
+        patterns['somma'] = {'media': round(sum(somme) / len(somme), 0), 'minima': min(somme), 'massima': max(somme)}
+        patterns['range'] = {'medio': round(sum(ranges) / len(ranges), 0), 'minimo': min(ranges), 'massimo': max(ranges)}
+        patterns['ultima_cifra'] = {'top_5': ultima_cifra_count.most_common(5)}
+        patterns['multipli'] = {'media_multipli_5': round(multipli_5_count / n, 1), 'media_multipli_10': round(multipli_10_count / n, 1)}
+        patterns['distanza_media'] = round(distanze_totali / (n * 5), 1)
+        
+        suggerimenti = []
+        if patterns['pari_dispari']['percentuale_misti'] > 60:
+            suggerimenti.append("Scegli 3-4 numeri pari e 2-3 dispari (pattern misto piu frequente)")
+        if patterns['consecutivi']['percentuale'] < 30:
+            suggerimenti.append("Evita numeri consecutivi (pochi casi)")
+        suggerimenti.append(f"Somma media dei 6 numeri: {patterns['somma']['media']:.0f}")
+        patterns['suggerimenti'] = suggerimenti
+        
+        return patterns
 
-    # ============ PAIR SCORE ============
-    def calculate_pair_score(self, number, frequent_pairs, last_extraction):
-        """Punteggio basato sugli ambi frequenti con i numeri dell'ultima estrazione"""
-        if not last_extraction:
-            return 0
-        
-        last_numbers = [last_extraction[f'n{i}'] for i in range(1, 7)]
-        score = 0
-        
-        for pair, freq in frequent_pairs:
-            if number in pair:
-                other = pair[0] if pair[1] == number else pair[1]
-                if other in last_numbers:
-                    score += freq * 5
-        
-        return min(score, 100)
+    # ============ MACHINE LEARNING ============
+    def predict_with_ml(self, extractions):
+        """Usa Random Forest per suggerire numeri basati su pattern storici"""
+        try:
+            from sklearn.ensemble import RandomForestClassifier
+            
+            if len(extractions) < 50:
+                return None
+            
+            X, y = [], []
+            
+            for i in range(len(extractions) - 1):
+                current = [extractions[i][f'n{j}'] for j in range(1, 7)]
+                next_ext = [extractions[i+1][f'n{j}'] for j in range(1, 7)]
+                
+                features = []
+                for num in range(1, 91):
+                    features.append(1 if num in current else 0)
+                
+                features.append(sum(1 for n in current if n % 2 == 0))
+                features.append(sum(1 for n in current if n <= 45))
+                features.append(max(current) - min(current))
+                features.append(sum(current))
+                
+                X.append(features)
+                y.append(1 if 1 in next_ext else 0)
+            
+            if len(X) < 20:
+                return None
+            
+            model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+            
+            last = extractions[0]
+            last_nums = [last[f'n{j}'] for j in range(1, 7)]
+            last_features = [1 if num in last_nums else 0 for num in range(1, 91)]
+            last_features.append(sum(1 for n in last_nums if n % 2 == 0))
+            last_features.append(sum(1 for n in last_nums if n <= 45))
+            last_features.append(max(last_nums) - min(last_nums))
+            last_features.append(sum(last_nums))
+            
+            model.fit(X, y)
+            
+            predictions = []
+            for num in range(1, 91):
+                proba = model.predict_proba([last_features])[0]
+                predictions.append((num, proba[1] if len(proba) > 1 else proba[0]))
+            
+            predictions.sort(key=lambda x: x[1], reverse=True)
+            ml_top = [p[0] for p in predictions[:9]]
+            
+            return {
+                'top_9_ml': ml_top,
+                'accuratezza_stimata': round(model.score(X[-100:], y[-100:]) * 100, 1) if len(X) >= 100 else 0
+            }
+        except Exception as e:
+            print(f"ML Error: {e}")
+            return None
 
     # ============ CALCOLO PUNTEGGI ============
     def calculate_scores(self, analysis_data):
@@ -263,8 +344,6 @@ class SuperEnalottoAnalyzer:
             momentum_score = min(analysis_data['momentum_index'].get(num, 0) / 200, 1)
             bonus_score = analysis_data['bonus'].get(num, 0) / 100
             terzo_score = analysis_data.get('legge_terzo', {}).get(num, 0) / 100
-            spy_score = analysis_data.get('spy_score', {}).get(num, 0) / 100
-            pair_score = analysis_data.get('pair_score', {}).get(num, 0) / 100
             
             synthetic_score = (
                 freq_score * self.weights['frequenza_recente'] +
@@ -274,9 +353,7 @@ class SuperEnalottoAnalyzer:
                 strength_score * self.weights['indice_forza'] +
                 momentum_score * self.weights['indice_momento'] +
                 bonus_score * self.weights['bonus'] +
-                terzo_score * self.weights.get('legge_terzo', 0.15) +
-                spy_score * self.weights.get('numeri_spia', 0.10) +
-                pair_score * self.weights.get('ambi_frequenti', 0.10)
+                terzo_score * self.weights.get('legge_terzo', 0.15)
             )
             
             final_score = round(synthetic_score * 100, 2)
@@ -292,8 +369,6 @@ class SuperEnalottoAnalyzer:
                     'momento': round(momentum_score * 100, 1),
                     'bonus': round(bonus_score * 100, 1),
                     'legge_terzo': round(terzo_score * 100, 1),
-                    'numeri_spia': round(spy_score * 100, 1),
-                    'ambi_frequenti': round(pair_score * 100, 1),
                 }
             }
         return scores
@@ -304,30 +379,14 @@ class SuperEnalottoAnalyzer:
         delay = analysis_data['delays']['current'].get(number, 0)
         group = self.get_group(number)
         terzo = analysis_data.get('legge_terzo', {}).get(number, 0)
-        spy = analysis_data.get('spy_score', {}).get(number, 0)
         
         outputs.append(f"Gruppo: {group}")
-        
-        if classification == 'HOT':
-            outputs.append("🔥 CALDO")
-        elif classification == 'COLD':
-            outputs.append("❄️ FREDDO")
-        else:
-            outputs.append("➖ NEUTRALE")
-        
-        if delay > 50:
-            outputs.append(f"⚠️ Ritardo: {delay}")
-        elif delay < 5:
-            outputs.append(f"✅ Recente: {delay} fa")
-        
-        if terzo > 70:
-            outputs.append(f"🎯 LeggeTerzo: ALTA")
-        elif terzo > 40:
-            outputs.append(f"📊 LeggeTerzo: media")
-        
-        if spy > 50:
-            outputs.append(f"🕵️ Spia: ALTA ({spy:.0f}%)")
-        
+        if classification == 'HOT': outputs.append("CALDO")
+        elif classification == 'COLD': outputs.append("FREDDO")
+        else: outputs.append("NEUTRALE")
+        if delay > 50: outputs.append(f"Ritardo: {delay}")
+        elif delay < 5: outputs.append(f"Recente: {delay} fa")
+        if terzo > 70: outputs.append(f"LeggeTerzo: ALTA")
         return " | ".join(outputs)
     
     def check_status(self, score):
@@ -347,8 +406,7 @@ class SuperEnalottoAnalyzer:
             groups = [self.get_group(num) for num in combo]
             unique_groups = len(set(groups))
             diversity_score = (unique_groups / 9) * 100
-            numbers_list = list(combo)
-            balance_score = 100 - np.std(numbers_list) * 2
+            balance_score = 100 - np.std(list(combo)) * 2
             
             combined_score = total_score * 0.5 + diversity_score * 0.3 + balance_score * 0.2
             
@@ -364,12 +422,10 @@ class SuperEnalottoAnalyzer:
         
         best_combinations = []
         for combo in scored_combinations:
-            if len(best_combinations) >= num_combinations:
-                break
+            if len(best_combinations) >= num_combinations: break
             is_diverse = True
             for existing in best_combinations:
-                common = len(set(combo['numbers']) & set(existing['numbers']))
-                if common >= 4:
+                if len(set(combo['numbers']) & set(existing['numbers'])) >= 4:
                     is_diverse = False
                     break
             if is_diverse:
@@ -384,7 +440,6 @@ class SuperEnalottoAnalyzer:
             if not extractions:
                 return {'error': 'Nessuna estrazione disponibile nel database'}
             
-            # Filtro periodo
             if period == '1m':
                 cutoff = datetime.now() - timedelta(days=30)
             elif period == '6m':
@@ -402,52 +457,24 @@ class SuperEnalottoAnalyzer:
                 return {'error': 'Nessuna estrazione nel periodo selezionato'}
             
             total_extractions = len(extractions)
-            last_extraction = extractions[0] if extractions else None
             
-            # Frequenze
             recent_freq = self.calculate_frequencies(extractions, 'recent')
             historical_freq = self.calculate_frequencies(extractions, 'historical')
-            
-            # Classifica
             classification = self.classify_hot_cold(recent_freq)
-            
-            # Ritardi
             current_delays, historical_delays = self.calculate_delays(extractions)
-            
-            # C/E Ratio
             ce_ratio = self.calculate_ce_ratio(historical_freq, total_extractions)
-            
-            # Indici
             strength_index = self.calculate_strength_index(ce_ratio)
             momentum_index = self.calculate_momentum_index(recent_freq, historical_freq)
             
-            # Bonus
             bonus = {}
             for num in self.numbers_range:
                 bonus[num] = self.calculate_bonus(num, current_delays, historical_delays, classification)
             
-            # Legge del Terzo
             legge_terzo = self.calculate_terzo_law(extractions)
+            group_analysis = self.analyze_by_group(extractions)
+            pattern_analysis = self.analyze_patterns(extractions)
+            ml_prediction = self.predict_with_ml(extractions)
             
-            # Ambi, Terni, Quaterne
-            frequent_pairs = self.calculate_frequent_pairs(extractions)
-            frequent_triplets = self.calculate_frequent_triplets(extractions)
-            frequent_quads = self.calculate_frequent_quads(extractions)
-            
-            # Numeri Spia
-            spy_numbers = self.calculate_spy_numbers(extractions)
-            
-            # Spy score
-            spy_score = {}
-            for num in self.numbers_range:
-                spy_score[num] = self.calculate_spy_score(num, spy_numbers, last_extraction)
-            
-            # Pair score
-            pair_score = {}
-            for num in self.numbers_range:
-                pair_score[num] = self.calculate_pair_score(num, frequent_pairs, last_extraction)
-            
-            # Dati analisi
             analysis_data = {
                 'frequencies': {'recent': recent_freq, 'historical': historical_freq},
                 'classification': classification,
@@ -457,23 +484,13 @@ class SuperEnalottoAnalyzer:
                 'momentum_index': momentum_index,
                 'bonus': bonus,
                 'legge_terzo': legge_terzo,
-                'spy_score': spy_score,
-                'pair_score': pair_score,
             }
             
-            # Punteggi
             scores = self.calculate_scores(analysis_data)
-            
-            # Ordina
             sorted_numbers = sorted(scores.items(), key=lambda x: x[1]['final'], reverse=True)
-            
-            # Top 9
             top_9 = [num for num, _ in sorted_numbers[:9]]
-            
-            # Combinazioni
             combinations_list = self.generate_top_combinations(top_9, scores)
             
-            # Output dettagliato
             detailed_analysis = []
             for num, score in sorted_numbers:
                 detailed_analysis.append({
@@ -482,7 +499,6 @@ class SuperEnalottoAnalyzer:
                     'frequenza_recente': recent_freq.get(num, 0),
                     'frequenza_storica': historical_freq.get(num, 0),
                     'stato': classification[num],
-                    'base_confronto': f"C/E = {ce_ratio.get(num, 0):.2f}",
                     'rapporto_ce': round(ce_ratio.get(num, 0), 3),
                     'ritardo_corrente': current_delays.get(num, 0),
                     'ritardo_storico': historical_delays.get(num, 0),
@@ -491,8 +507,6 @@ class SuperEnalottoAnalyzer:
                     'indice_forza': strength_index.get(num, 0),
                     'indice_momento': momentum_index.get(num, 0),
                     'legge_terzo': legge_terzo.get(num, 0),
-                    'numeri_spia': spy_score.get(num, 0),
-                    'ambi_score': pair_score.get(num, 0),
                     'output_macro': self.generate_macro_output(num, analysis_data),
                     'verifica_stato': self.check_status(score['final']),
                     'punteggio_sintetico': score['synthetic'],
@@ -500,7 +514,6 @@ class SuperEnalottoAnalyzer:
                     'componenti_punteggio': score['components']
                 })
             
-            # Statistiche
             statistics = {
                 'totale_estrazioni': total_extractions,
                 'periodo': period,
@@ -516,15 +529,15 @@ class SuperEnalottoAnalyzer:
             
             result = {
                 'timestamp': datetime.now().isoformat(),
-                'versione_analisi': '1.2.0',
+                'versione_analisi': '2.0.0',
                 'periodo': period,
                 'top_9_numeri': top_9,
                 'migliori_sestine': combinations_list,
                 'analisi_dettagliata': detailed_analysis,
                 'statistiche': statistics,
-                'ambi_frequenti': [{'coppia': list(p), 'frequenza': f} for p, f in frequent_pairs[:10]],
-                'terni_frequenti': [{'terzina': list(t), 'frequenza': f} for t, f in frequent_triplets[:5]],
-                'numeri_spia_top': {str(k): [{'numero': s[0], 'frequenza': s[1]} for s in v[:3]] for k, v in list(spy_numbers.items())[:10]},
+                'analisi_gruppi': group_analysis,
+                'pattern_analisi': pattern_analysis,
+                'machine_learning': ml_prediction,
             }
             
             return result
