@@ -155,7 +155,7 @@ function RegisterScreen({ navigation }) {
   );
 }
 
-// HOME
+// HOME CON CALENDARIO
 function HomeScreen({ navigation }) {
   const [totalExtractions, setTotalExtractions] = useState(null);
   const [user, setUser] = useState(null);
@@ -165,10 +165,55 @@ function HomeScreen({ navigation }) {
   const loadUser = async () => { const u = await AsyncStorage.getItem('user'); if (u) setUser(JSON.parse(u)); };
   const fetchStats = async () => { try { const r = await axios.get(`${API_BASE_URL}/api/stats`); setTotalExtractions(r.data.total_extractions); } catch (e) {} };
   const handleLogout = async () => { await AsyncStorage.removeItem('user'); navigation.replace('Login'); };
+
+  // Calendario giorni estrazione
+  const getExtractionDays = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const extractionDays = [2, 4, 5, 6]; // mar, gio, ven, sab
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    const weekDays = [];
+    const dayNames = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      weekDays.push({
+        day: dayNames[i],
+        date: date.getDate(),
+        isToday: date.toDateString() === today.toDateString(),
+        isExtractionDay: extractionDays.includes(date.getDay()),
+      });
+    }
+    return weekDays;
+  };
+  const weekDays = getExtractionDays();
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={[styles.header, { backgroundColor: theme.header }]}><Text style={styles.headerIcon}>🎯</Text><Text style={styles.title}>SuperEnalotto Analyzer</Text>{user && <Text style={styles.welcomeText}>👋 {user.email}</Text>}<Text style={styles.subtitle}>Analisi statistica</Text></View>
+      
       <View style={[styles.statsBadge, { backgroundColor: theme.badge }]}><Text style={styles.statsBadgeIcon}>📊</Text><Text style={[styles.statsBadgeText, { color: theme.badgeText }]}>{totalExtractions ? totalExtractions.toLocaleString() : '...'} estrazioni</Text></View>
+
+      {/* CALENDARIO ESTRAZIONI */}
+      <View style={[styles.calendarCard, { backgroundColor: theme.card }]}>
+        <Text style={[styles.calendarTitle, { color: theme.text }]}>📅 Prossime Estrazioni</Text>
+        <Text style={[styles.calendarSubtitle, { color: theme.subtext }]}>
+          {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </Text>
+        <View style={styles.calendarRow}>
+          {weekDays.map((item, index) => (
+            <View key={index} style={styles.calendarDay}>
+              <Text style={[styles.calendarDayName, { color: theme.subtext }]}>{item.day}</Text>
+              <View style={[styles.calendarDayNumber, item.isToday && styles.calendarToday, item.isExtractionDay && styles.calendarExtraction]}>
+                <Text style={[styles.calendarDayText, { color: theme.text }, (item.isToday || item.isExtractionDay) && { color: '#fff', fontWeight: 'bold' }]}>{item.date}</Text>
+              </View>
+              {item.isExtractionDay && <Text style={styles.extractionDot}>🎯</Text>}
+            </View>
+          ))}
+        </View>
+      </View>
+
       <View style={styles.menuGrid}>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('Analysis')}><Text style={styles.menuIcon}>🔮</Text><Text style={[styles.menuText, { color: theme.text }]}>Analisi</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('ExtractionList')}><Text style={styles.menuIcon}>📋</Text><Text style={[styles.menuText, { color: theme.text }]}>Archivio</Text></TouchableOpacity>
@@ -301,9 +346,7 @@ function ResultsScreen({ route, navigation }) {
       <View style={styles.actionButtons}>
         <TouchableOpacity style={styles.generateBtn} onPress={generateSestine}><Text style={styles.buttonText}>🎲 Genera Sestine</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.favBtn, { backgroundColor: favorites.length >= 6 ? '#ff9800' : '#999' }]} onPress={generateFromFavorites}>
-          <Text style={styles.buttonText}>
-            {favorites.length >= 6 ? '⭐ Dai Preferiti' : `⭐ Servono ${6 - favorites.length} numeri`}
-          </Text>
+          <Text style={styles.buttonText}>{favorites.length >= 6 ? '⭐ Dai Preferiti' : `⭐ Servono ${6 - favorites.length} numeri`}</Text>
         </TouchableOpacity>
       </View>
 
@@ -332,9 +375,7 @@ function ResultsScreen({ route, navigation }) {
         {displayCombos && displayCombos.length > 0 ? (
           displayCombos.slice(0,10).map((combo,index)=>(
             <View key={index} style={[styles.comboCard,{backgroundColor:theme.card},index===0&&!showFavorites&&styles.bestCombo]}>
-              <Text style={[styles.comboTitle,{color:theme.text}]}>
-                {index===0&&!showFavorites?'🥇 ':index===1&&!showFavorites?'🥈 ':index===2&&!showFavorites?'🥉 ':''}Sestina #{index+1}
-              </Text>
+              <Text style={[styles.comboTitle,{color:theme.text}]}>{index===0&&!showFavorites?'🥇 ':index===1&&!showFavorites?'🥈 ':index===2&&!showFavorites?'🥉 ':''}Sestina #{index+1}</Text>
               <View style={styles.comboNumbersRow}>
                 {(combo.numbers || []).map((num, i) => {
                   const isFav = favorites.includes(num);
@@ -358,7 +399,7 @@ function ResultsScreen({ route, navigation }) {
   );
 }
 
-// EXTRACTION LIST
+// EXTRACTION LIST, ADD EXTRACTION, SUBSCRIPTION (invariate)
 function ExtractionListScreen() {
   const [extractions, setExtractions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -375,7 +416,6 @@ function ExtractionListScreen() {
   );
 }
 
-// ADD EXTRACTION
 function AddExtractionScreen({ navigation }) {
   const [date, setDate] = useState('');
   const [numbers, setNumbers] = useState(['', '', '', '', '', '']);
@@ -399,7 +439,6 @@ function AddExtractionScreen({ navigation }) {
   );
 }
 
-// SUBSCRIPTION
 function SubscriptionScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? darkTheme : lightTheme;
@@ -463,6 +502,18 @@ const styles = StyleSheet.create({
   statsBadgeIcon: { fontSize: 25 },
   statsBadgeText: { fontSize: 18, fontWeight: 'bold' },
   statsBadgeSubtext: { fontSize: 12, color: '#666', marginTop: 3 },
+  // CALENDARIO
+  calendarCard: { margin: 15, padding: 15, borderRadius: 12, elevation: 2 },
+  calendarTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 5 },
+  calendarSubtitle: { fontSize: 12, marginBottom: 10 },
+  calendarRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  calendarDay: { alignItems: 'center', flex: 1 },
+  calendarDayName: { fontSize: 10, fontWeight: '500', marginBottom: 4 },
+  calendarDayNumber: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  calendarToday: { backgroundColor: '#1a237e', borderWidth: 2, borderColor: '#1a237e' },
+  calendarExtraction: { backgroundColor: '#f44336' },
+  calendarDayText: { fontSize: 13 },
+  extractionDot: { fontSize: 8, marginTop: 2 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
   analysisIcon: { fontSize: 60, textAlign: 'center', marginBottom: 10 },
   periodSection: { padding: 15 },
