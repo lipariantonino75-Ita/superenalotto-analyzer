@@ -5,6 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIn
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { BarChart } from 'react-native-chart-kit';
+import * as InAppPurchases from 'expo-in-app-purchases';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -167,7 +168,6 @@ function HomeScreen({ navigation }) {
       <View style={[styles.header, { backgroundColor: theme.header }]}><Text style={styles.headerIcon}>🎯</Text><Text style={styles.title}>SuperEnalotto Analyzer</Text>{user && <Text style={styles.welcomeText}>👋 {user.email}</Text>}<Text style={styles.subtitle}>Analisi statistica</Text></View>
       <View style={[styles.statsBadge, { backgroundColor: theme.badge }]}><Text style={styles.statsBadgeIcon}>📊</Text><Text style={[styles.statsBadgeText, { color: theme.badgeText }]}>{totalExtractions ? totalExtractions.toLocaleString() : '...'} estrazioni</Text></View>
       
-      {/* CALENDARIO */}
       <View style={[styles.calendarCard, { backgroundColor: theme.card }]}>
         <Text style={[styles.calendarTitle, { color: theme.text }]}>📅 Prossime Estrazioni</Text>
         <Text style={[styles.calendarSubtitle, { color: theme.subtext }]}>{new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
@@ -244,7 +244,7 @@ function ResultsScreen({ route, navigation }) {
   );
 }
 
-// GENERATOR SCREEN
+// GENERATOR
 function GeneratorScreen({ navigation }) {
   const [generatedNumbers, setGeneratedNumbers] = useState([]);
   const [savedCombos, setSavedCombos] = useState([]);
@@ -272,7 +272,7 @@ function GeneratorScreen({ navigation }) {
   );
 }
 
-// EXTRACTION LIST, ADD EXTRACTION, SUBSCRIPTION
+// EXTRACTION LIST
 function ExtractionListScreen() {
   const [extractions, setExtractions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -284,6 +284,7 @@ function ExtractionListScreen() {
   return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.listHeader,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📋 Archivio</Text></View>{extractions.map((ext,i)=>(<View key={i} style={[styles.extractionCard,{backgroundColor:theme.card}]}><Text style={[styles.extractionDate,{color:theme.text}]}>📅 {ext.extraction_date}</Text><Text style={[styles.extractionNumbers,{color:theme.inputText}]}>🎱 {ext.n1} - {ext.n2} - {ext.n3} - {ext.n4} - {ext.n5} - {ext.n6}</Text></View>))}</ScrollView>);
 }
 
+// ADD EXTRACTION
 function AddExtractionScreen({ navigation }) {
   const [date, setDate] = useState('');
   const [numbers, setNumbers] = useState(['', '', '', '', '', '']);
@@ -294,10 +295,60 @@ function AddExtractionScreen({ navigation }) {
   return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.formHeader,{backgroundColor:theme.card}]}><Text style={styles.formIcon}>➕</Text><Text style={[styles.sectionTitle,{color:theme.text}]}>Nuova Estrazione</Text></View><View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>📅 Data</Text><TextInput style={[styles.input,{backgroundColor:theme.input,color:theme.inputText,borderColor:theme.border}]} value={date} onChangeText={setDate} placeholder="2026-08-01" placeholderTextColor="#999" /></View><View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>🎱 6 Numeri</Text><View style={styles.numbersInputRow}>{numbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText,borderColor:theme.border}]} value={n} onChangeText={t=>{let m=[...numbers];m[i]=t;setNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999" />))}</View></View><TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Salvataggio...':'💾 SALVA'}</Text></TouchableOpacity></ScrollView>);
 }
 
+// SUBSCRIPTION CON BILLING
 function SubscriptionScreen() {
+  const [purchasing, setPurchasing] = useState(false);
   const { isDark } = useTheme();
   const theme = isDark ? darkTheme : lightTheme;
-  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.subscriptionHeader,{backgroundColor:theme.header}]}><Text style={styles.subscriptionIcon}>💎</Text><Text style={styles.title}>Piani</Text><Text style={styles.subtitle}>✅ 3 giorni gratis</Text></View>{[{id:'weekly',name:'📅 Settimanale',price:'2.99',days:7,color:'#4caf50'},{id:'monthly',name:'📅 Mensile',price:'9.99',days:30,color:'#2196f3'},{id:'annual',name:'📅 Annuale',price:'79.99',days:365,color:'#9c27b0'}].map(p=>(<TouchableOpacity key={p.id} style={[styles.planCard,{borderLeftColor:p.color,backgroundColor:theme.card}]}><View style={styles.planInfo}><Text style={[styles.planName,{color:theme.text}]}>{p.name}</Text><Text style={[styles.planDuration,{color:theme.subtext}]}>⏱️ {p.days}gg</Text></View><Text style={[styles.planPrice,{color:p.color}]}>€{p.price}</Text></TouchableOpacity>))}</ScrollView>);
+
+  useEffect(() => {
+    InAppPurchases.connectAsync();
+    return () => InAppPurchases.disconnectAsync();
+  }, []);
+
+  const handlePurchase = async (productId) => {
+    setPurchasing(true);
+    try {
+      const { responseCode } = await InAppPurchases.purchaseItemAsync(productId);
+      if (responseCode === InAppPurchases.IAPResponseCode.OK) {
+        Vibration.vibrate([0,50,50,50,100]);
+        Alert.alert('✅', 'Abbonamento attivato con successo!');
+      }
+    } catch (e) {
+      Alert.alert('Errore', 'Acquisto fallito. Riprova.');
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const plans = [
+    { id: 'superenalotto_weekly', name: '📅 Settimanale', price: '2.99', days: 7, color: '#4caf50' },
+    { id: 'superenalotto_monthly', name: '📅 Mensile', price: '9.99', days: 30, color: '#2196f3' },
+    { id: 'superenalotto_annual', name: '📅 Annuale', price: '79.99', days: 365, color: '#9c27b0' },
+  ];
+
+  return (
+    <ScrollView style={[styles.container,{backgroundColor:theme.bg}]}>
+      <View style={[styles.subscriptionHeader,{backgroundColor:theme.header}]}>
+        <Text style={styles.subscriptionIcon}>💎</Text>
+        <Text style={styles.title}>Piani Abbonamento</Text>
+        <Text style={styles.subtitle}>✅ 3 giorni di prova gratuita</Text>
+      </View>
+      {plans.map((plan) => (
+        <TouchableOpacity key={plan.id} style={[styles.planCard,{borderLeftColor:plan.color,backgroundColor:theme.card}]} onPress={() => handlePurchase(plan.id)} disabled={purchasing}>
+          <View style={styles.planInfo}>
+            <Text style={[styles.planName,{color:theme.text}]}>{plan.name}</Text>
+            <Text style={[styles.planDuration,{color:theme.subtext}]}>⏱️ {plan.days} giorni</Text>
+          </View>
+          <Text style={[styles.planPrice,{color:plan.color}]}>€{plan.price}</Text>
+        </TouchableOpacity>
+      ))}
+      <View style={[styles.trialInfo,{backgroundColor:theme.badge}]}>
+        <Text style={styles.trialText}>🆓 3 giorni di prova gratuita</Text>
+        <Text style={styles.trialSubtext}>Nessun impegno, disdici quando vuoi</Text>
+      </View>
+    </ScrollView>
+  );
 }
 
 // MAIN APP
@@ -439,7 +490,6 @@ const styles = StyleSheet.create({
   planName: { fontSize: 20, fontWeight: 'bold' },
   planDuration: { fontSize: 14, marginTop: 5 },
   planPrice: { fontSize: 28, fontWeight: 'bold' },
-  // Generatore
   dashboardCard: { margin: 15, padding: 15, borderRadius: 12 },
   dashboardRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
   dashboardItem: { alignItems: 'center' },
