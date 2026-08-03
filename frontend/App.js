@@ -70,26 +70,9 @@ function TermsScreen({ navigation }) {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={[styles.loginHeader, { backgroundColor: theme.header }]}><Text style={styles.loginIcon}>📜</Text><Text style={styles.title}>Termini di Utilizzo</Text><Text style={styles.subtitle}>Leggi e accetta per continuare</Text></View>
-      <View style={[styles.termsCard, { backgroundColor: theme.card }]}>
-        <Text style={[styles.termsTitle, { color: theme.text }]}>Condizioni d'uso</Text>
-        <Text style={[styles.termsText, { color: theme.subtext }]}>Benvenuto in SuperEnalotto Analyzer.</Text>
-        <Text style={[styles.termsSubtitle, { color: theme.text }]}>1. Scopo</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Analisi statistiche a scopo informativo.</Text>
-        <Text style={[styles.termsSubtitle, { color: theme.text }]}>2. Gioco Responsabile</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Numero verde: 800 558 822.</Text>
-        <Text style={[styles.termsSubtitle, { color: theme.text }]}>3. Eta minima</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Vietato ai minori di 18 anni.</Text>
-        <Text style={[styles.termsSubtitle, { color: theme.text }]}>4. Privacy</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Dati usati solo per accesso.</Text>
-        <Text style={[styles.termsSubtitle, { color: theme.text }]}>5. Responsabilita</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Nessuna garanzia di vincita.</Text>
-      </View>
-      <View style={[styles.ageCard, { backgroundColor: theme.card }]}>
-        <Text style={[styles.termsSubtitle, { color: theme.text }]}>Eta dell'utente</Text>
-        <View style={styles.ageRow}>
-          <TouchableOpacity style={[styles.ageButton, { backgroundColor: isMinor === false ? '#4caf50' : theme.badge }]} onPress={() => setIsMinor(false)}><Text style={[styles.ageButtonText, { color: isMinor === false ? '#fff' : theme.text }]}>✅ Maggiorenne</Text></TouchableOpacity>
-          <TouchableOpacity style={[styles.ageButton, { backgroundColor: isMinor === true ? '#ff9800' : theme.badge }]} onPress={() => setIsMinor(true)}><Text style={[styles.ageButtonText, { color: isMinor === true ? '#fff' : theme.text }]}>🔞 Minorenne</Text></TouchableOpacity>
-        </View>
-      </View>
-      <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.refuseButton} onPress={() => Alert.alert('Accesso negato', 'Devi accettare i termini.', [{ text: 'Esci', onPress: () => BackHandler.exitApp() }])}><Text style={styles.buttonText}>❌ RIFIUTA</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}><Text style={styles.buttonText}>✅ ACCETTA</Text></TouchableOpacity>
-      </View>
+      <View style={[styles.termsCard, { backgroundColor: theme.card }]}><Text style={[styles.termsTitle, { color: theme.text }]}>Condizioni d'uso</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Benvenuto in SuperEnalotto Analyzer.</Text><Text style={[styles.termsSubtitle, { color: theme.text }]}>1. Scopo</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Analisi statistiche a scopo informativo.</Text><Text style={[styles.termsSubtitle, { color: theme.text }]}>2. Gioco Responsabile</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Numero verde: 800 558 822.</Text><Text style={[styles.termsSubtitle, { color: theme.text }]}>3. Eta minima</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Vietato ai minori di 18 anni.</Text><Text style={[styles.termsSubtitle, { color: theme.text }]}>4. Privacy</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Dati usati solo per accesso.</Text><Text style={[styles.termsSubtitle, { color: theme.text }]}>5. Responsabilita</Text><Text style={[styles.termsText, { color: theme.subtext }]}>Nessuna garanzia di vincita.</Text></View>
+      <View style={[styles.ageCard, { backgroundColor: theme.card }]}><Text style={[styles.termsSubtitle, { color: theme.text }]}>Eta dell'utente</Text><View style={styles.ageRow}><TouchableOpacity style={[styles.ageButton, { backgroundColor: isMinor === false ? '#4caf50' : theme.badge }]} onPress={() => setIsMinor(false)}><Text style={[styles.ageButtonText, { color: isMinor === false ? '#fff' : theme.text }]}>✅ Maggiorenne</Text></TouchableOpacity><TouchableOpacity style={[styles.ageButton, { backgroundColor: isMinor === true ? '#ff9800' : theme.badge }]} onPress={() => setIsMinor(true)}><Text style={[styles.ageButtonText, { color: isMinor === true ? '#fff' : theme.text }]}>🔞 Minorenne</Text></TouchableOpacity></View></View>
+      <View style={styles.actionRow}><TouchableOpacity style={styles.refuseButton} onPress={() => Alert.alert('Accesso negato', 'Devi accettare i termini.', [{ text: 'Esci', onPress: () => BackHandler.exitApp() }])}><Text style={styles.buttonText}>❌ RIFIUTA</Text></TouchableOpacity><TouchableOpacity style={styles.acceptButton} onPress={handleAccept}><Text style={styles.buttonText}>✅ ACCETTA</Text></TouchableOpacity></View>
     </ScrollView>
   );
 }
@@ -105,10 +88,8 @@ function LoginScreen({ navigation }) {
   const handleLogin = async () => {
     if (!email || !password) { Vibration.vibrate(200); Alert.alert('Errore', 'Inserisci email e password'); return; }
     setLoading(true);
-    try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
-      if (res.data.success) { await AsyncStorage.setItem('user', JSON.stringify(res.data)); navigation.replace('Home'); }
-    } catch (e) { Vibration.vibrate([0,100,100,100]); Alert.alert('Errore', 'Credenziali non valide'); }
+    try { const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password }); if (res.data.success) { await AsyncStorage.setItem('user', JSON.stringify(res.data)); navigation.replace('Home'); } }
+    catch (e) { Vibration.vibrate([0,100,100,100]); Alert.alert('Errore', 'Credenziali non valide'); }
     finally { setLoading(false); }
   };
   return (
@@ -136,10 +117,8 @@ function RegisterScreen({ navigation }) {
     if (!email || !password) { Vibration.vibrate(200); Alert.alert('Errore', 'Inserisci email e password'); return; }
     if (password.length < 4) { Alert.alert('Errore', 'Password minima 4 caratteri'); return; }
     setLoading(true);
-    try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/register`, { email, password });
-      if (res.data.success) { Alert.alert('OK', 'Registrazione completata!'); navigation.goBack(); }
-    } catch (e) { Vibration.vibrate([0,100,100,100]); Alert.alert('Errore', 'Registrazione fallita'); }
+    try { const res = await axios.post(`${API_BASE_URL}/api/auth/register`, { email, password }); if (res.data.success) { Alert.alert('OK', 'Registrazione completata!'); navigation.goBack(); } }
+    catch (e) { Vibration.vibrate([0,100,100,100]); Alert.alert('Errore', 'Registrazione fallita'); }
     finally { setLoading(false); }
   };
   return (
@@ -166,11 +145,10 @@ function HomeScreen({ navigation }) {
   const fetchStats = async () => { try { const r = await axios.get(`${API_BASE_URL}/api/stats`); setTotalExtractions(r.data.total_extractions); } catch (e) {} };
   const handleLogout = async () => { await AsyncStorage.removeItem('user'); navigation.replace('Login'); };
 
-  // Calendario giorni estrazione
   const getExtractionDays = () => {
     const today = new Date();
     const dayOfWeek = today.getDay();
-    const extractionDays = [2, 4, 5, 6]; // mar, gio, ven, sab
+    const extractionDays = [2, 4, 5, 6];
     const monday = new Date(today);
     monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
     const weekDays = [];
@@ -178,12 +156,7 @@ function HomeScreen({ navigation }) {
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
-      weekDays.push({
-        day: dayNames[i],
-        date: date.getDate(),
-        isToday: date.toDateString() === today.toDateString(),
-        isExtractionDay: extractionDays.includes(date.getDay()),
-      });
+      weekDays.push({ day: dayNames[i], date: date.getDate(), isToday: date.toDateString() === today.toDateString(), isExtractionDay: extractionDays.includes(date.getDay()) });
     }
     return weekDays;
   };
@@ -192,39 +165,25 @@ function HomeScreen({ navigation }) {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={[styles.header, { backgroundColor: theme.header }]}><Text style={styles.headerIcon}>🎯</Text><Text style={styles.title}>SuperEnalotto Analyzer</Text>{user && <Text style={styles.welcomeText}>👋 {user.email}</Text>}<Text style={styles.subtitle}>Analisi statistica</Text></View>
-      
       <View style={[styles.statsBadge, { backgroundColor: theme.badge }]}><Text style={styles.statsBadgeIcon}>📊</Text><Text style={[styles.statsBadgeText, { color: theme.badgeText }]}>{totalExtractions ? totalExtractions.toLocaleString() : '...'} estrazioni</Text></View>
-
-      {/* CALENDARIO ESTRAZIONI */}
+      
+      {/* CALENDARIO */}
       <View style={[styles.calendarCard, { backgroundColor: theme.card }]}>
         <Text style={[styles.calendarTitle, { color: theme.text }]}>📅 Prossime Estrazioni</Text>
-        <Text style={[styles.calendarSubtitle, { color: theme.subtext }]}>
-          {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </Text>
-        <View style={styles.calendarRow}>
-          {weekDays.map((item, index) => (
-            <View key={index} style={styles.calendarDay}>
-              <Text style={[styles.calendarDayName, { color: theme.subtext }]}>{item.day}</Text>
-              <View style={[styles.calendarDayNumber, item.isToday && styles.calendarToday, item.isExtractionDay && styles.calendarExtraction]}>
-                <Text style={[styles.calendarDayText, { color: theme.text }, (item.isToday || item.isExtractionDay) && { color: '#fff', fontWeight: 'bold' }]}>{item.date}</Text>
-              </View>
-              {item.isExtractionDay && <Text style={styles.extractionDot}>🎯</Text>}
-            </View>
-          ))}
-        </View>
+        <Text style={[styles.calendarSubtitle, { color: theme.subtext }]}>{new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
+        <View style={styles.calendarRow}>{weekDays.map((item, index) => (<View key={index} style={styles.calendarDay}><Text style={[styles.calendarDayName, { color: theme.subtext }]}>{item.day}</Text><View style={[styles.calendarDayNumber, item.isToday && styles.calendarToday, item.isExtractionDay && styles.calendarExtraction]}><Text style={[styles.calendarDayText, { color: theme.text }, (item.isToday || item.isExtractionDay) && { color: '#fff', fontWeight: 'bold' }]}>{item.date}</Text></View>{item.isExtractionDay && <Text style={styles.extractionDot}>🎯</Text>}</View>))}</View>
       </View>
 
       <View style={styles.menuGrid}>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('Analysis')}><Text style={styles.menuIcon}>🔮</Text><Text style={[styles.menuText, { color: theme.text }]}>Analisi</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('Generator')}><Text style={styles.menuIcon}>🎲</Text><Text style={[styles.menuText, { color: theme.text }]}>Generatore</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('ExtractionList')}><Text style={styles.menuIcon}>📋</Text><Text style={[styles.menuText, { color: theme.text }]}>Archivio</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('AddExtraction')}><Text style={styles.menuIcon}>➕</Text><Text style={[styles.menuText, { color: theme.text }]}>Aggiungi</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('Subscription')}><Text style={styles.menuIcon}>💳</Text><Text style={[styles.menuText, { color: theme.text }]}>Abbonamento</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => setIsDark(!isDark)}><Text style={styles.menuIcon}>{isDark ? '☀️' : '🌙'}</Text><Text style={[styles.menuText, { color: theme.text }]}>{isDark ? 'Chiaro' : 'Scuro'}</Text></TouchableOpacity>
       </View>
       <View style={{ height: 30 }} />
-      <TouchableOpacity style={[styles.logoutButton, { marginBottom: 50 }]} onPress={handleLogout}>
-        <Text style={styles.buttonText}>🚪 LOGOUT</Text>
-      </TouchableOpacity>
+      <TouchableOpacity style={[styles.logoutButton, { marginBottom: 50 }]} onPress={handleLogout}><Text style={styles.buttonText}>🚪 LOGOUT</Text></TouchableOpacity>
       <View style={{ height: 50 }} />
     </ScrollView>
   );
@@ -237,26 +196,17 @@ function AnalysisScreen({ navigation }) {
   const { isDark } = useTheme();
   const theme = isDark ? darkTheme : lightTheme;
   const periods = [{ id: '1m', name: '📅 Ultimo mese' },{ id: '6m', name: '📅 Ultimi 6 mesi' },{ id: '1y', name: '📅 Ultimo anno' },{ id: 'all', name: '📅 Dal 1997' }];
-  const performAnalysis = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.post(`${API_BASE_URL}/api/analyze`, { period });
-      Vibration.vibrate([0,50,50,50,50,50,100,50,200]);
-      scheduleAnalysisNotification();
-      navigation.navigate('Results', { analysis: res.data, period });
-    } catch (e) { Vibration.vibrate(500); Alert.alert('Errore', 'Analisi fallita'); }
-    finally { setLoading(false); }
-  };
+  const performAnalysis = async () => { setLoading(true); try { const res = await axios.post(`${API_BASE_URL}/api/analyze`, { period }); Vibration.vibrate([0,50,50,50,50,50,100,50,200]); scheduleAnalysisNotification(); navigation.navigate('Results', { analysis: res.data, period }); } catch (e) { Vibration.vibrate(500); Alert.alert('Errore'); } finally { setLoading(false); } };
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={[styles.analysisHeader, { backgroundColor: theme.card }]}><Text style={styles.analysisIcon}>🔮</Text><Text style={[styles.sectionTitle, { color: theme.text }]}>Analisi Statistica</Text></View>
-      <View style={styles.periodSection}><Text style={[styles.label, { color: theme.text }]}>Periodo</Text><View style={styles.periodGrid}>{periods.map((p)=>(<TouchableOpacity key={p.id} style={[styles.periodButton,{backgroundColor:period===p.id?'#1a237e':theme.card,borderColor:period===p.id?'#1a237e':theme.border}]} onPress={()=>setPeriod(p.id)}><Text style={[styles.periodButtonText,{color:period===p.id?'#fff':theme.text}]}>{p.name}</Text></TouchableOpacity>))}</View></View>
+      <View style={styles.periodSection}><Text style={[styles.label, { color: theme.text }]}>Periodo</Text><View style={styles.periodGrid}>{periods.map((p)=>(<TouchableOpacity key={p.id} style={[styles.periodButton,{backgroundColor:period===p.id?'#1a237e':theme.card}]} onPress={()=>setPeriod(p.id)}><Text style={[styles.periodButtonText,{color:period===p.id?'#fff':theme.text}]}>{p.name}</Text></TouchableOpacity>))}</View></View>
       {loading ? (<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#1a237e" /><Text style={[styles.loadingText,{color:theme.text}]}>Analisi...</Text></View>) : (<TouchableOpacity style={styles.bigAnalyzeButton} onPress={performAnalysis}><Text style={styles.bigButtonIcon}>🔮</Text><Text style={styles.bigButtonText}>AVVIA ANALISI</Text></TouchableOpacity>)}
     </View>
   );
 }
 
-// RESULTS RINNOVATA CON FIX
+// RESULTS
 function ResultsScreen({ route, navigation }) {
   const { analysis, period } = route.params || {};
   const { isDark } = useTheme();
@@ -264,142 +214,65 @@ function ResultsScreen({ route, navigation }) {
   const [favorites, setFavorites] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [generatedCombos, setGeneratedCombos] = useState(null);
-
-  useEffect(() => { 
-    Vibration.vibrate([0,100,50,100,50,100,200]); 
-    loadFavorites();
-    if (analysis?.migliori_sestine) {
-        setGeneratedCombos(analysis.migliori_sestine.slice(0, 10));
-    }
-  }, []);
-
-  const loadFavorites = async () => {
-    const favs = await AsyncStorage.getItem('favorites');
-    if (favs) setFavorites(JSON.parse(favs));
-  };
-
-  const toggleFavorite = async (num) => {
-    let newFavs;
-    if (favorites.includes(num)) { newFavs = favorites.filter(f => f !== num); }
-    else { newFavs = [...favorites, num].slice(0, 9); }
-    setFavorites(newFavs);
-    await AsyncStorage.setItem('favorites', JSON.stringify(newFavs));
-    Vibration.vibrate(50);
-  };
-
-  const generateSestine = () => {
-    Vibration.vibrate([0,50,50,50,100]);
-    if (analysis?.migliori_sestine) {
-      setGeneratedCombos(analysis.migliori_sestine.slice(0, 10));
-      setShowFavorites(false);
-    }
-  };
-
-  const generateFromFavorites = () => {
-    if (favorites.length >= 6) {
-      Vibration.vibrate([0,50,50,50,100]);
-      const combos = [];
-      for (let i = 0; i < 10; i++) {
-        const shuffled = [...favorites].sort(() => Math.random() - 0.5).slice(0, 6);
-        combos.push({ numbers: shuffled.sort((a,b)=>a-b), combined_score: '★' });
-      }
-      setGeneratedCombos(combos);
-      setShowFavorites(true);
-    } else { Alert.alert('⚠️', 'Salva almeno 6 numeri preferiti'); }
-  };
-
+  useEffect(() => { Vibration.vibrate([0,100,50,100,50,100,200]); loadFavorites(); if (analysis?.migliori_sestine) { setGeneratedCombos(analysis.migliori_sestine.slice(0, 10)); } }, []);
+  const loadFavorites = async () => { const favs = await AsyncStorage.getItem('favorites'); if (favs) setFavorites(JSON.parse(favs)); };
+  const toggleFavorite = async (num) => { let newFavs; if (favorites.includes(num)) { newFavs = favorites.filter(f => f !== num); } else { newFavs = [...favorites, num].slice(0, 9); } setFavorites(newFavs); await AsyncStorage.setItem('favorites', JSON.stringify(newFavs)); Vibration.vibrate(50); };
+  const generateSestine = () => { Vibration.vibrate([0,50,50,50,100]); if (analysis?.migliori_sestine) { setGeneratedCombos(analysis.migliori_sestine.slice(0, 10)); setShowFavorites(false); } };
+  const generateFromFavorites = () => { if (favorites.length >= 6) { Vibration.vibrate([0,50,50,50,100]); const combos = []; for (let i = 0; i < 10; i++) { const shuffled = [...favorites].sort(() => Math.random() - 0.5).slice(0, 6); combos.push({ numbers: shuffled.sort((a,b)=>a-b), combined_score: '★' }); } setGeneratedCombos(combos); setShowFavorites(true); } else { Alert.alert('⚠️', 'Salva almeno 6 numeri preferiti'); } };
   if (!analysis) return <View style={[styles.container,{backgroundColor:theme.bg}]}><Text style={{color:theme.text}}>Nessun risultato</Text></View>;
-  
   const periodLabel = period==='1m'?'(1 mese)':period==='6m'?'(6 mesi)':period==='1y'?'(1 anno)':'';
   const displayCombos = generatedCombos || analysis.migliori_sestine?.slice(0, 10);
-
   return (
     <ScrollView style={[styles.container,{backgroundColor:theme.bg}]}>
-      <View style={[styles.resultHeader,{backgroundColor:theme.header}]}>
-        <Text style={styles.resultIcon}>🏆</Text>
-        <Text style={styles.resultTitle}>Top 9 Numeri {periodLabel}</Text>
-        <View style={styles.circleGrid}>
-          {analysis.top_9_numeri?.map((num, index) => {
-            const isFav = favorites.includes(num);
-            const size = index < 3 ? 70 : 55;
-            const colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#1a237e', '#1a237e', '#1a237e', '#1a237e', '#1a237e', '#1a237e'];
-            return (
-              <TouchableOpacity key={index} onPress={() => toggleFavorite(num)}>
-                <View style={[styles.circleNumber, { width: size, height: size, borderRadius: size/2, backgroundColor: index < 3 ? colors[index] : theme.card, borderColor: index < 3 ? colors[index] : theme.border, borderWidth: 2 }]}>
-                  <Text style={[styles.circleText, { color: index < 3 ? '#000' : theme.text, fontSize: index < 3 ? 20 : 16 }]}>{num}</Text>
-                  {index < 3 && <Text style={styles.medalCircle}>{index===0?'🥇':index===1?'🥈':'🥉'}</Text>}
-                  {isFav && <Text style={styles.favStar}>⭐</Text>}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+      <View style={[styles.resultHeader,{backgroundColor:theme.header}]}><Text style={styles.resultIcon}>🏆</Text><Text style={styles.resultTitle}>Top 9 Numeri {periodLabel}</Text>
+        <View style={styles.circleGrid}>{analysis.top_9_numeri?.map((num, index) => { const isFav = favorites.includes(num); const size = index < 3 ? 70 : 55; const colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#1a237e', '#1a237e', '#1a237e', '#1a237e', '#1a237e', '#1a237e']; return (<TouchableOpacity key={index} onPress={() => toggleFavorite(num)}><View style={[styles.circleNumber, { width: size, height: size, borderRadius: size/2, backgroundColor: index < 3 ? colors[index] : theme.card, borderColor: index < 3 ? colors[index] : theme.border, borderWidth: 2 }]}><Text style={[styles.circleText, { color: index < 3 ? '#000' : theme.text, fontSize: index < 3 ? 20 : 16 }]}>{num}</Text>{index < 3 && <Text style={styles.medalCircle}>{index===0?'🥇':index===1?'🥈':'🥉'}</Text>}{isFav && <Text style={styles.favStar}>⭐</Text>}</View></TouchableOpacity>); })}</View>
       </View>
-
       <View style={styles.statsRow}>
         <View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>🔥</Text><Text style={[styles.miniValue,{color:'#f44336'}]}>{analysis.statistiche?.numeri_hot}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Hot</Text></View>
         <View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>❄️</Text><Text style={[styles.miniValue,{color:'#2196f3'}]}>{analysis.statistiche?.numeri_cold}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Cold</Text></View>
         <View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>😐</Text><Text style={[styles.miniValue,{color:'#ff9800'}]}>{analysis.statistiche?.numeri_neutral}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Tiepidi</Text></View>
         <View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>⭐</Text><Text style={[styles.miniValue,{color:theme.text}]}>{analysis.statistiche?.punteggio_massimo}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Max</Text></View>
       </View>
-
       <View style={styles.actionButtons}>
         <TouchableOpacity style={styles.generateBtn} onPress={generateSestine}><Text style={styles.buttonText}>🎲 Genera Sestine</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.favBtn, { backgroundColor: favorites.length >= 6 ? '#ff9800' : '#999' }]} onPress={generateFromFavorites}>
-          <Text style={styles.buttonText}>{favorites.length >= 6 ? '⭐ Dai Preferiti' : `⭐ Servono ${6 - favorites.length} numeri`}</Text>
-        </TouchableOpacity>
+        <TouchableOpacity style={[styles.favBtn, { backgroundColor: favorites.length >= 6 ? '#ff9800' : '#999' }]} onPress={generateFromFavorites}><Text style={styles.buttonText}>{favorites.length >= 6 ? '⭐ Dai Preferiti' : `⭐ Servono ${6 - favorites.length} numeri`}</Text></TouchableOpacity>
       </View>
-
-      {favorites.length > 0 && (
-        <View style={[styles.favSection,{backgroundColor:theme.card}]}>
-          <Text style={[styles.sectionTitle,{color:theme.text}]}>⭐ Preferiti ({favorites.length}/9)</Text>
-          <View style={styles.favRow}>{favorites.map((num, i) => (<TouchableOpacity key={i} onPress={() => toggleFavorite(num)}><View style={[styles.favCircle,{backgroundColor:theme.badge}]}><Text style={[styles.favCircleText,{color:theme.text}]}>{num}</Text></View></TouchableOpacity>))}</View>
-        </View>
-      )}
-
-      <View style={styles.chartSection}>
-        <Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Frequenza Top 9</Text>
-        {analysis.top_9_numeri && analysis.analisi_dettagliata && (
-          <BarChart
-            data={{labels:analysis.top_9_numeri.slice(0,9).map(n=>String(n)),datasets:[{data:analysis.top_9_numeri.slice(0,9).map(n=>{const f=analysis.analisi_dettagliata?.find(a=>a.identificativo===n);return f?.frequenza_recente||0;})}]}}
-            width={Dimensions.get('window').width-30}
-            height={200}
-            chartConfig={{backgroundColor:theme.chartBg,backgroundGradientFrom:theme.chartBg,backgroundGradientTo:theme.chartGradient,decimalCount:0,color:(opacity=1)=>`rgba(76,175,80,${opacity})`,labelColor:(opacity=1)=>`rgba(255,255,255,${opacity})`,barPercentage:0.6}}
-            style={{borderRadius:12,marginHorizontal:15}}
-          />
-        )}
-      </View>
-
-      <View style={styles.combinationsSection}>
-        <Text style={[styles.sectionTitle,{color:theme.text}]}>{showFavorites ? '⭐ Sestine dai Preferiti' : '🎲 Migliori Sestine'}</Text>
-        {displayCombos && displayCombos.length > 0 ? (
-          displayCombos.slice(0,10).map((combo,index)=>(
-            <View key={index} style={[styles.comboCard,{backgroundColor:theme.card},index===0&&!showFavorites&&styles.bestCombo]}>
-              <Text style={[styles.comboTitle,{color:theme.text}]}>{index===0&&!showFavorites?'🥇 ':index===1&&!showFavorites?'🥈 ':index===2&&!showFavorites?'🥉 ':''}Sestina #{index+1}</Text>
-              <View style={styles.comboNumbersRow}>
-                {(combo.numbers || []).map((num, i) => {
-                  const isFav = favorites.includes(num);
-                  return (
-                    <TouchableOpacity key={i} onPress={() => toggleFavorite(num)}>
-                      <View style={[styles.comboNumberBall, { backgroundColor: isFav ? '#ffd700' : theme.badge }]}>
-                        <Text style={[styles.comboNumberText, { color: isFav ? '#000' : theme.text }]}>{num}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              <Text style={styles.comboScore}>⭐ {typeof combo.combined_score === 'number' ? combo.combined_score.toFixed(1) : combo.combined_score}</Text>
-            </View>
-          ))
-        ) : (
-          <Text style={[styles.description,{color:theme.subtext}]}>Clicca "🎲 Genera Sestine" per vedere le combinazioni</Text>
-        )}
-      </View>
+      {favorites.length > 0 && (<View style={[styles.favSection,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>⭐ Preferiti ({favorites.length}/9)</Text><View style={styles.favRow}>{favorites.map((num, i) => (<TouchableOpacity key={i} onPress={() => toggleFavorite(num)}><View style={[styles.favCircle,{backgroundColor:theme.badge}]}><Text style={[styles.favCircleText,{color:theme.text}]}>{num}</Text></View></TouchableOpacity>))}</View></View>)}
+      <View style={styles.chartSection}><Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Frequenza Top 9</Text>{analysis.top_9_numeri && analysis.analisi_dettagliata && (<BarChart data={{labels:analysis.top_9_numeri.slice(0,9).map(n=>String(n)),datasets:[{data:analysis.top_9_numeri.slice(0,9).map(n=>{const f=analysis.analisi_dettagliata?.find(a=>a.identificativo===n);return f?.frequenza_recente||0;})}]}} width={Dimensions.get('window').width-30} height={200} chartConfig={{backgroundColor:theme.chartBg,backgroundGradientFrom:theme.chartBg,backgroundGradientTo:theme.chartGradient,decimalCount:0,color:(opacity=1)=>`rgba(76,175,80,${opacity})`,labelColor:(opacity=1)=>`rgba(255,255,255,${opacity})`,barPercentage:0.6}} style={{borderRadius:12,marginHorizontal:15}} />)}</View>
+      <View style={styles.combinationsSection}><Text style={[styles.sectionTitle,{color:theme.text}]}>{showFavorites ? '⭐ Sestine dai Preferiti' : '🎲 Migliori Sestine'}</Text>{displayCombos && displayCombos.length > 0 ? (displayCombos.slice(0,10).map((combo,index)=>(<View key={index} style={[styles.comboCard,{backgroundColor:theme.card},index===0&&!showFavorites&&styles.bestCombo]}><Text style={[styles.comboTitle,{color:theme.text}]}>{index===0&&!showFavorites?'🥇 ':index===1&&!showFavorites?'🥈 ':index===2&&!showFavorites?'🥉 ':''}Sestina #{index+1}</Text><View style={styles.comboNumbersRow}>{(combo.numbers || []).map((num, i) => { const isFav = favorites.includes(num); return (<TouchableOpacity key={i} onPress={() => toggleFavorite(num)}><View style={[styles.comboNumberBall, { backgroundColor: isFav ? '#ffd700' : theme.badge }]}><Text style={[styles.comboNumberText, { color: isFav ? '#000' : theme.text }]}>{num}</Text></View></TouchableOpacity>); })}</View><Text style={styles.comboScore}>⭐ {typeof combo.combined_score === 'number' ? combo.combined_score.toFixed(1) : combo.combined_score}</Text></View>))) : (<Text style={[styles.description,{color:theme.subtext}]}>Clicca "🎲 Genera Sestine" per vedere le combinazioni</Text>)}</View>
     </ScrollView>
   );
 }
 
-// EXTRACTION LIST, ADD EXTRACTION, SUBSCRIPTION (invariate)
+// GENERATOR SCREEN
+function GeneratorScreen({ navigation }) {
+  const [generatedNumbers, setGeneratedNumbers] = useState([]);
+  const [savedCombos, setSavedCombos] = useState([]);
+  const [showArchive, setShowArchive] = useState(false);
+  const [userStats, setUserStats] = useState({ totalGenerations: 0, totalSaved: 0 });
+  const { isDark } = useTheme();
+  const theme = isDark ? darkTheme : lightTheme;
+  useEffect(() => { loadSavedCombos(); loadStats(); }, []);
+  const loadSavedCombos = async () => { const saved = await AsyncStorage.getItem('generatedCombos'); if (saved) setSavedCombos(JSON.parse(saved)); };
+  const loadStats = async () => { const stats = await AsyncStorage.getItem('userStats'); if (stats) setUserStats(JSON.parse(stats)); };
+  const generateNumbers = () => { Vibration.vibrate([0,50,50,50,100]); const numbers = []; while (numbers.length < 6) { const num = Math.floor(Math.random() * 90) + 1; if (!numbers.includes(num)) numbers.push(num); } numbers.sort((a, b) => a - b); setGeneratedNumbers(numbers); const newStats = { ...userStats, totalGenerations: userStats.totalGenerations + 1 }; setUserStats(newStats); AsyncStorage.setItem('userStats', JSON.stringify(newStats)); };
+  const saveCombo = async () => { if (generatedNumbers.length === 0) { Alert.alert('⚠️', 'Genera prima una combinazione'); return; } Vibration.vibrate([0,50,50,50,100]); const newCombo = { id: Date.now(), numbers: [...generatedNumbers], date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) }; const updated = [newCombo, ...savedCombos].slice(0, 50); setSavedCombos(updated); await AsyncStorage.setItem('generatedCombos', JSON.stringify(updated)); const newStats = { ...userStats, totalSaved: userStats.totalSaved + 1 }; setUserStats(newStats); AsyncStorage.setItem('userStats', JSON.stringify(newStats)); Alert.alert('✅', 'Combinazione salvata!'); };
+  const deleteCombo = async (id) => { const updated = savedCombos.filter(c => c.id !== id); setSavedCombos(updated); await AsyncStorage.setItem('generatedCombos', JSON.stringify(updated)); };
+  const clearArchive = async () => { Alert.alert('🗑️', 'Cancellare tutto l\'archivio?', [{ text: 'Annulla', style: 'cancel' }, { text: 'Cancella', style: 'destructive', onPress: async () => { setSavedCombos([]); await AsyncStorage.setItem('generatedCombos', JSON.stringify([])); } }]); };
+  return (
+    <ScrollView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <View style={[styles.dashboardCard, { backgroundColor: theme.card }]}><Text style={[styles.sectionTitle, { color: theme.text }]}>👤 Dashboard</Text><View style={styles.dashboardRow}><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{userStats.totalGenerations}</Text><Text style={[styles.dashboardLabel, { color: theme.subtext }]}>Generazioni</Text></View><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{userStats.totalSaved}</Text><Text style={[styles.dashboardLabel, { color: theme.subtext }]}>Salvati</Text></View><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{savedCombos.length}</Text><Text style={[styles.dashboardLabel, { color: theme.subtext }]}>In archivio</Text></View></View></View>
+      <View style={[styles.generatorCard, { backgroundColor: theme.card }]}><Text style={[styles.sectionTitle, { color: theme.text }]}>🎲 Genera Numeri</Text>
+        {generatedNumbers.length > 0 ? (<View style={styles.generatedNumbersRow}>{generatedNumbers.map((num, i) => (<View key={i} style={styles.generatedBall}><Text style={styles.generatedBallText}>{num}</Text></View>))}</View>) : (<Text style={[styles.description, { color: theme.subtext }]}>Clicca "Genera" per creare una combinazione casuale</Text>)}
+        <View style={styles.actionButtons}><TouchableOpacity style={styles.generateBtn2} onPress={generateNumbers}><Text style={styles.buttonText}>🎲 Genera</Text></TouchableOpacity><TouchableOpacity style={[styles.saveBtn, { opacity: generatedNumbers.length > 0 ? 1 : 0.5 }]} onPress={saveCombo}><Text style={styles.buttonText}>💾 Salva</Text></TouchableOpacity></View>
+      </View>
+      <TouchableOpacity style={[styles.archiveBtn, { backgroundColor: theme.card }]} onPress={() => setShowArchive(!showArchive)}><Text style={[styles.sectionTitle, { color: theme.text }]}>{showArchive ? '📋 Nascondi Archivio' : '📋 Visualizza Archivio'} ({savedCombos.length})</Text></TouchableOpacity>
+      {showArchive && (<View style={[styles.archiveCard, { backgroundColor: theme.card }]}>{savedCombos.length > 0 ? (<><TouchableOpacity style={styles.clearBtn} onPress={clearArchive}><Text style={styles.clearBtnText}>🗑️ Cancella tutto</Text></TouchableOpacity>{savedCombos.map((combo, i) => (<View key={i} style={styles.archiveItem}><View style={styles.archiveHeader}><Text style={[styles.archiveDate, { color: theme.text }]}>📅 {combo.date} {combo.time}</Text><TouchableOpacity onPress={() => deleteCombo(combo.id)}><Text style={styles.deleteIcon}>🗑️</Text></TouchableOpacity></View><View style={styles.archiveNumbersRow}>{combo.numbers.map((num, j) => (<View key={j} style={[styles.archiveBall, { backgroundColor: theme.badge }]}><Text style={[styles.archiveBallText, { color: theme.text }]}>{num}</Text></View>))}</View></View>))}</>) : (<Text style={[styles.description, { color: theme.subtext }]}>Nessuna combinazione salvata</Text>)}</View>)}
+    </ScrollView>
+  );
+}
+
+// EXTRACTION LIST, ADD EXTRACTION, SUBSCRIPTION
 function ExtractionListScreen() {
   const [extractions, setExtractions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -408,12 +281,7 @@ function ExtractionListScreen() {
   useEffect(() => { fetchExtractions(); }, []);
   const fetchExtractions = async () => { try { const r = await axios.get(`${API_BASE_URL}/api/extractions?limit=50`); setExtractions(r.data); } catch (e) {} finally { setLoading(false); } };
   if (loading) return <View style={[styles.container,{backgroundColor:theme.bg}]}><ActivityIndicator size="large" color="#1a237e" style={{marginTop:100}} /></View>;
-  return (
-    <ScrollView style={[styles.container,{backgroundColor:theme.bg}]}>
-      <View style={[styles.listHeader,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📋 Archivio</Text></View>
-      {extractions.map((ext,i)=>(<View key={i} style={[styles.extractionCard,{backgroundColor:theme.card}]}><Text style={[styles.extractionDate,{color:theme.text}]}>📅 {ext.extraction_date}</Text><Text style={[styles.extractionNumbers,{color:theme.inputText}]}>🎱 {ext.n1} - {ext.n2} - {ext.n3} - {ext.n4} - {ext.n5} - {ext.n6}</Text></View>))}
-    </ScrollView>
-  );
+  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.listHeader,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📋 Archivio</Text></View>{extractions.map((ext,i)=>(<View key={i} style={[styles.extractionCard,{backgroundColor:theme.card}]}><Text style={[styles.extractionDate,{color:theme.text}]}>📅 {ext.extraction_date}</Text><Text style={[styles.extractionNumbers,{color:theme.inputText}]}>🎱 {ext.n1} - {ext.n2} - {ext.n3} - {ext.n4} - {ext.n5} - {ext.n6}</Text></View>))}</ScrollView>);
 }
 
 function AddExtractionScreen({ navigation }) {
@@ -422,32 +290,14 @@ function AddExtractionScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const { isDark } = useTheme();
   const theme = isDark ? darkTheme : lightTheme;
-  const handleSubmit = async () => {
-    if (!date || numbers.some(n => !n || n < 1 || n > 90)) { Vibration.vibrate(200); Alert.alert('Errore', 'Inserisci data e 6 numeri tra 1 e 90'); return; }
-    setLoading(true);
-    try { await axios.post(`${API_BASE_URL}/api/extractions`, { date, numbers: numbers.map(Number) }); Vibration.vibrate([0,50,50,50,100]); Alert.alert('OK', 'Aggiunta!'); navigation.goBack(); }
-    catch (e) { Vibration.vibrate(500); Alert.alert('Errore'); }
-    finally { setLoading(false); }
-  };
-  return (
-    <ScrollView style={[styles.container,{backgroundColor:theme.bg}]}>
-      <View style={[styles.formHeader,{backgroundColor:theme.card}]}><Text style={styles.formIcon}>➕</Text><Text style={[styles.sectionTitle,{color:theme.text}]}>Nuova Estrazione</Text></View>
-      <View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>📅 Data</Text><TextInput style={[styles.input,{backgroundColor:theme.input,color:theme.inputText,borderColor:theme.border}]} value={date} onChangeText={setDate} placeholder="2026-08-01" placeholderTextColor="#999" /></View>
-      <View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>🎱 6 Numeri</Text><View style={styles.numbersInputRow}>{numbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText,borderColor:theme.border}]} value={n} onChangeText={t=>{let m=[...numbers];m[i]=t;setNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999" />))}</View></View>
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Salvataggio...':'💾 SALVA'}</Text></TouchableOpacity>
-    </ScrollView>
-  );
+  const handleSubmit = async () => { if (!date || numbers.some(n => !n || n < 1 || n > 90)) { Vibration.vibrate(200); Alert.alert('Errore'); return; } setLoading(true); try { await axios.post(`${API_BASE_URL}/api/extractions`, { date, numbers: numbers.map(Number) }); Vibration.vibrate([0,50,50,50,100]); Alert.alert('OK', 'Aggiunta!'); navigation.goBack(); } catch (e) { Vibration.vibrate(500); Alert.alert('Errore'); } finally { setLoading(false); } };
+  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.formHeader,{backgroundColor:theme.card}]}><Text style={styles.formIcon}>➕</Text><Text style={[styles.sectionTitle,{color:theme.text}]}>Nuova Estrazione</Text></View><View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>📅 Data</Text><TextInput style={[styles.input,{backgroundColor:theme.input,color:theme.inputText,borderColor:theme.border}]} value={date} onChangeText={setDate} placeholder="2026-08-01" placeholderTextColor="#999" /></View><View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>🎱 6 Numeri</Text><View style={styles.numbersInputRow}>{numbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText,borderColor:theme.border}]} value={n} onChangeText={t=>{let m=[...numbers];m[i]=t;setNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999" />))}</View></View><TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Salvataggio...':'💾 SALVA'}</Text></TouchableOpacity></ScrollView>);
 }
 
 function SubscriptionScreen() {
   const { isDark } = useTheme();
   const theme = isDark ? darkTheme : lightTheme;
-  return (
-    <ScrollView style={[styles.container,{backgroundColor:theme.bg}]}>
-      <View style={[styles.subscriptionHeader,{backgroundColor:theme.header}]}><Text style={styles.subscriptionIcon}>💎</Text><Text style={styles.title}>Piani</Text><Text style={styles.subtitle}>✅ 3 giorni gratis</Text></View>
-      {[{id:'weekly',name:'📅 Settimanale',price:'2.99',days:7,color:'#4caf50'},{id:'monthly',name:'📅 Mensile',price:'9.99',days:30,color:'#2196f3'},{id:'annual',name:'📅 Annuale',price:'79.99',days:365,color:'#9c27b0'}].map(p=>(<TouchableOpacity key={p.id} style={[styles.planCard,{borderLeftColor:p.color,backgroundColor:theme.card}]}><View style={styles.planInfo}><Text style={[styles.planName,{color:theme.text}]}>{p.name}</Text><Text style={[styles.planDuration,{color:theme.subtext}]}>⏱️ {p.days}gg</Text></View><Text style={[styles.planPrice,{color:p.color}]}>€{p.price}</Text></TouchableOpacity>))}
-    </ScrollView>
-  );
+  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.subscriptionHeader,{backgroundColor:theme.header}]}><Text style={styles.subscriptionIcon}>💎</Text><Text style={styles.title}>Piani</Text><Text style={styles.subtitle}>✅ 3 giorni gratis</Text></View>{[{id:'weekly',name:'📅 Settimanale',price:'2.99',days:7,color:'#4caf50'},{id:'monthly',name:'📅 Mensile',price:'9.99',days:30,color:'#2196f3'},{id:'annual',name:'📅 Annuale',price:'79.99',days:365,color:'#9c27b0'}].map(p=>(<TouchableOpacity key={p.id} style={[styles.planCard,{borderLeftColor:p.color,backgroundColor:theme.card}]}><View style={styles.planInfo}><Text style={[styles.planName,{color:theme.text}]}>{p.name}</Text><Text style={[styles.planDuration,{color:theme.subtext}]}>⏱️ {p.days}gg</Text></View><Text style={[styles.planPrice,{color:p.color}]}>€{p.price}</Text></TouchableOpacity>))}</ScrollView>);
 }
 
 // MAIN APP
@@ -465,6 +315,7 @@ export default function App() {
           <Stack.Screen name="Home" component={HomeScreen} options={{ title: '🏠 Home', headerLeft: () => null }} />
           <Stack.Screen name="Analysis" component={AnalysisScreen} options={{ title: '🔮 Analisi' }} />
           <Stack.Screen name="Results" component={ResultsScreen} options={{ title: '🏆 Risultati' }} />
+          <Stack.Screen name="Generator" component={GeneratorScreen} options={{ title: '🎲 Generatore' }} />
           <Stack.Screen name="ExtractionList" component={ExtractionListScreen} options={{ title: '📋 Archivio' }} />
           <Stack.Screen name="AddExtraction" component={AddExtractionScreen} options={{ title: '➕ Nuova' }} />
           <Stack.Screen name="Subscription" component={SubscriptionScreen} options={{ title: '💎 Abbonamento' }} />
@@ -501,8 +352,6 @@ const styles = StyleSheet.create({
   statsBadge: { padding: 15, marginHorizontal: 15, marginTop: -10, borderRadius: 10, alignItems: 'center' },
   statsBadgeIcon: { fontSize: 25 },
   statsBadgeText: { fontSize: 18, fontWeight: 'bold' },
-  statsBadgeSubtext: { fontSize: 12, color: '#666', marginTop: 3 },
-  // CALENDARIO
   calendarCard: { margin: 15, padding: 15, borderRadius: 12, elevation: 2 },
   calendarTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 5 },
   calendarSubtitle: { fontSize: 12, marginBottom: 10 },
@@ -520,7 +369,7 @@ const styles = StyleSheet.create({
   periodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   periodButton: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
   periodButtonText: { fontSize: 13, fontWeight: '500' },
-  bigAnalyzeButton: { backgroundColor: '#4caf50', margin: 20, padding: 30, borderRadius: 20, alignItems: 'center', elevation: 5 },
+  bigAnalyzeButton: { backgroundColor: '#4caf50', margin: 20, padding: 30, borderRadius: 20, alignItems: 'center' },
   bigButtonIcon: { fontSize: 50, marginBottom: 10 },
   bigButtonText: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
   resultIcon: { fontSize: 50, marginBottom: 10 },
@@ -585,16 +434,40 @@ const styles = StyleSheet.create({
   numberInput: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 18, width: 48, textAlign: 'center' },
   submitButton: { backgroundColor: '#ff9800', margin: 15, padding: 18, borderRadius: 12, alignItems: 'center' },
   subscriptionHeader: { padding: 30, alignItems: 'center' },
-  planCard: { marginHorizontal: 15, marginTop: 15, padding: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 5, elevation: 2 },
+  planCard: { marginHorizontal: 15, marginTop: 15, padding: 20, borderRadius: 12, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 5 },
   planInfo: { flex: 1 },
   planName: { fontSize: 20, fontWeight: 'bold' },
   planDuration: { fontSize: 14, marginTop: 5 },
   planPrice: { fontSize: 28, fontWeight: 'bold' },
+  // Generatore
+  dashboardCard: { margin: 15, padding: 15, borderRadius: 12 },
+  dashboardRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
+  dashboardItem: { alignItems: 'center' },
+  dashboardValue: { fontSize: 28, fontWeight: 'bold', color: '#1a237e' },
+  dashboardLabel: { fontSize: 11, marginTop: 3 },
+  generatorCard: { margin: 15, padding: 15, borderRadius: 12 },
+  generatedNumbersRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 15 },
+  generatedBall: { width: 45, height: 45, borderRadius: 25, backgroundColor: '#1a237e', justifyContent: 'center', alignItems: 'center' },
+  generatedBallText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  generateBtn2: { flex: 1, backgroundColor: '#1a237e', padding: 15, borderRadius: 12, alignItems: 'center', marginRight: 5 },
+  saveBtn: { flex: 1, backgroundColor: '#ff9800', padding: 15, borderRadius: 12, alignItems: 'center', marginLeft: 5 },
+  archiveBtn: { margin: 15, padding: 15, borderRadius: 12 },
+  archiveCard: { marginHorizontal: 15, marginBottom: 30, padding: 15, borderRadius: 12 },
+  clearBtn: { alignItems: 'flex-end', marginBottom: 10 },
+  clearBtnText: { color: '#f44336', fontSize: 14 },
+  archiveItem: { marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  archiveHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  archiveDate: { fontSize: 13 },
+  deleteIcon: { fontSize: 16 },
+  archiveNumbersRow: { flexDirection: 'row', gap: 6 },
+  archiveBall: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  archiveBallText: { fontSize: 13, fontWeight: 'bold' },
+  description: { fontSize: 14, textAlign: 'center', marginTop: 10 },
   features: { padding: 20, margin: 15, borderRadius: 15 },
   featureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   featureBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   featureBadgeText: { fontSize: 12, fontWeight: '500' },
-  description: { fontSize: 14, color: '#666', marginTop: 10, textAlign: 'center' },
+  statsBadgeSubtext: { fontSize: 12, color: '#666', marginTop: 3 },
   footer: { textAlign: 'center', marginTop: 20, marginBottom: 30 },
   loadingSubtext: { fontSize: 13, color: '#666', marginTop: 8 },
   bigButtonSubText: { color: '#e0e0e0', fontSize: 12, marginTop: 5 },
