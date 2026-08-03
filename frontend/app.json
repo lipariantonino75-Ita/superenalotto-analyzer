@@ -22,7 +22,7 @@
         "foregroundImageScale": 0.65
       },
       "package": "com.lipariantonino75.superenalottoanalyzer",
-      "versionCode": 35
+      "versionCode": 36
     },
     "web": {
       "favicon": "./assets/favicon.png"
