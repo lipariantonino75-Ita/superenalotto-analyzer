@@ -176,7 +176,11 @@ function HomeScreen({ navigation }) {
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => navigation.navigate('Subscription')}><Text style={styles.menuIcon}>💳</Text><Text style={[styles.menuText, { color: theme.text }]}>Abbonamento</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.menuItem, { backgroundColor: theme.card }]} onPress={() => setIsDark(!isDark)}><Text style={styles.menuIcon}>{isDark ? '☀️' : '🌙'}</Text><Text style={[styles.menuText, { color: theme.text }]}>{isDark ? 'Chiaro' : 'Scuro'}</Text></TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}><Text style={styles.buttonText}>🚪 LOGOUT</Text></TouchableOpacity>
+      <View style={{ height: 30 }} />
+      <TouchableOpacity style={[styles.logoutButton, { marginBottom: 50 }]} onPress={handleLogout}>
+        <Text style={styles.buttonText}>🚪 LOGOUT</Text>
+      </TouchableOpacity>
+      <View style={{ height: 50 }} />
     </ScrollView>
   );
 }
@@ -207,7 +211,7 @@ function AnalysisScreen({ navigation }) {
   );
 }
 
-// RESULTS RINNOVATA
+// RESULTS RINNOVATA CON FIX
 function ResultsScreen({ route, navigation }) {
   const { analysis, period } = route.params || {};
   const { isDark } = useTheme();
@@ -219,6 +223,9 @@ function ResultsScreen({ route, navigation }) {
   useEffect(() => { 
     Vibration.vibrate([0,100,50,100,50,100,200]); 
     loadFavorites();
+    if (analysis?.migliori_sestine) {
+        setGeneratedCombos(analysis.migliori_sestine.slice(0, 10));
+    }
   }, []);
 
   const loadFavorites = async () => {
@@ -293,7 +300,11 @@ function ResultsScreen({ route, navigation }) {
 
       <View style={styles.actionButtons}>
         <TouchableOpacity style={styles.generateBtn} onPress={generateSestine}><Text style={styles.buttonText}>🎲 Genera Sestine</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.favBtn, { backgroundColor: favorites.length >= 6 ? '#ff9800' : '#999' }]} onPress={generateFromFavorites}><Text style={styles.buttonText}>⭐ Dai Preferiti</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.favBtn, { backgroundColor: favorites.length >= 6 ? '#ff9800' : '#999' }]} onPress={generateFromFavorites}>
+          <Text style={styles.buttonText}>
+            {favorites.length >= 6 ? '⭐ Dai Preferiti' : `⭐ Servono ${6 - favorites.length} numeri`}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {favorites.length > 0 && (
@@ -318,23 +329,30 @@ function ResultsScreen({ route, navigation }) {
 
       <View style={styles.combinationsSection}>
         <Text style={[styles.sectionTitle,{color:theme.text}]}>{showFavorites ? '⭐ Sestine dai Preferiti' : '🎲 Migliori Sestine'}</Text>
-        {displayCombos?.slice(0,10).map((combo,index)=>(
-          <View key={index} style={[styles.comboCard,{backgroundColor:theme.card},index===0&&!showFavorites&&styles.bestCombo]}>
-            <View style={styles.comboNumbersRow}>
-              {(combo.numbers || []).map((num, i) => {
-                const isFav = favorites.includes(num);
-                return (
-                  <TouchableOpacity key={i} onPress={() => toggleFavorite(num)}>
-                    <View style={[styles.comboNumberBall, { backgroundColor: isFav ? '#ffd700' : theme.badge }]}>
-                      <Text style={[styles.comboNumberText, { color: isFav ? '#000' : theme.text }]}>{num}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+        {displayCombos && displayCombos.length > 0 ? (
+          displayCombos.slice(0,10).map((combo,index)=>(
+            <View key={index} style={[styles.comboCard,{backgroundColor:theme.card},index===0&&!showFavorites&&styles.bestCombo]}>
+              <Text style={[styles.comboTitle,{color:theme.text}]}>
+                {index===0&&!showFavorites?'🥇 ':index===1&&!showFavorites?'🥈 ':index===2&&!showFavorites?'🥉 ':''}Sestina #{index+1}
+              </Text>
+              <View style={styles.comboNumbersRow}>
+                {(combo.numbers || []).map((num, i) => {
+                  const isFav = favorites.includes(num);
+                  return (
+                    <TouchableOpacity key={i} onPress={() => toggleFavorite(num)}>
+                      <View style={[styles.comboNumberBall, { backgroundColor: isFav ? '#ffd700' : theme.badge }]}>
+                        <Text style={[styles.comboNumberText, { color: isFav ? '#000' : theme.text }]}>{num}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={styles.comboScore}>⭐ {typeof combo.combined_score === 'number' ? combo.combined_score.toFixed(1) : combo.combined_score}</Text>
             </View>
-            <Text style={styles.comboScore}>⭐ {combo.combined_score}</Text>
-          </View>
-        ))}
+          ))
+        ) : (
+          <Text style={[styles.description,{color:theme.subtext}]}>Clicca "🎲 Genera Sestine" per vedere le combinazioni</Text>
+        )}
       </View>
     </ScrollView>
   );
@@ -486,7 +504,6 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', margin: 15, gap: 10, marginBottom: 30 },
   refuseButton: { flex: 1, backgroundColor: '#f44336', padding: 18, borderRadius: 12, alignItems: 'center' },
   acceptButton: { flex: 1, backgroundColor: '#4caf50', padding: 18, borderRadius: 12, alignItems: 'center' },
-  // Nuovi stili Results
   circleGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 15 },
   circleNumber: { justifyContent: 'center', alignItems: 'center', elevation: 3 },
   circleText: { fontWeight: 'bold' },
@@ -509,6 +526,7 @@ const styles = StyleSheet.create({
   comboNumberText: { fontWeight: 'bold', fontSize: 13 },
   comboScore: { fontSize: 14, color: '#4caf50', marginTop: 5, fontWeight: 'bold' },
   comboCard: { padding: 18, marginVertical: 6, borderRadius: 12, elevation: 2 },
+  comboTitle: { fontSize: 16, fontWeight: 'bold' },
   formHeader: { padding: 20, margin: 15, borderRadius: 12, alignItems: 'center' },
   formGroup: { padding: 15, marginHorizontal: 15, marginBottom: 10, borderRadius: 12 },
   label: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
@@ -538,7 +556,6 @@ const styles = StyleSheet.create({
   numberBadge: { backgroundColor: '#fff', borderRadius: 15, padding: 12, alignItems: 'center', width: 65, elevation: 3 },
   rankText: { fontSize: 10, color: '#666', fontWeight: 'bold' },
   numberText: { fontSize: 24, fontWeight: 'bold', color: '#1a237e' },
-  comboTitle: { fontSize: 16, fontWeight: 'bold' },
   comboNumbers: { fontSize: 18, marginTop: 8, fontWeight: '500' },
   medalIcon: { fontSize: 16, position: 'absolute', top: -10, right: -5 },
   comboHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
