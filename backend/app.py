@@ -1,249 +1,191 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-from datetime import datetime, timedelta
-import os
-import sys
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, TextInput, Vibration, Dimensions, useColorScheme, Platform, BackHandler } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { BarChart } from 'react-native-chart-kit';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 
-# Inizializza app Flask
-app = Flask(__name__)
-CORS(app)
+const Stack = createStackNavigator();
+const API_BASE_URL = 'https://superenalotto-api.onrender.com';
 
-# Import moduli locali
-from config import Config
-from database import Database
-from analysis import SuperEnalottoAnalyzer
+export const ThemeContext = createContext();
+export const useTheme = () => useContext(ThemeContext);
 
-# Inizializza database
-db = Database()
+const lightTheme = { name: 'light', bg: '#f5f5f5', card: '#ffffff', text: '#1a237e', subtext: '#666666', header: '#1a237e', input: '#ffffff', inputText: '#000000', border: '#cccccc', badge: '#e8eaf6', badgeText: '#1a237e', chartBg: '#1a237e', chartGradient: '#283593' };
+const darkTheme = { name: 'dark', bg: '#121212', card: '#1e1e1e', text: '#bb86fc', subtext: '#aaaaaa', header: '#000000', input: '#333333', inputText: '#ffffff', border: '#444444', badge: '#1e1e1e', badgeText: '#bb86fc', chartBg: '#000000', chartGradient: '#1a1a2e' };
 
-def initialize_database():
-    """Inizializza il database e importa dati reali se vuoto"""
-    print("🔧 Inizializzazione database...")
-    
-    if not db.init_db():
-        print("❌ Errore inizializzazione database")
-        return
-    
-    if not db.conn:
-        db.connect()
-    
-    count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
-    
-    if count == 0:
-        print("📥 Database vuoto! Importazione dati reali...")
-        try:
-            data_dir = os.path.join(os.path.dirname(__file__), 'data')
-            if os.path.exists(data_dir):
-                excel_files = [f for f in os.listdir(data_dir) if f.endswith('.xlsx')]
-                if excel_files:
-                    print(f"📁 Trovato file: {excel_files[0]}")
-                    from import_data import import_real_extractions
-                    excel_path = os.path.join(data_dir, excel_files[0])
-                    import_real_extractions(excel_path)
-                    print("✅ Dati reali importati con successo!")
-                else:
-                    print("⚠️ Nessun file Excel trovato, uso dati di esempio")
-                    db.seed_sample_data()
-            else:
-                print("⚠️ Cartella data non trovata, uso dati di esempio")
-                db.seed_sample_data()
-        except Exception as e:
-            print(f"⚠️ Errore importazione: {e}")
-            db.seed_sample_data()
-    else:
-        print(f"✅ Database già popolato con {count} estrazioni")
-    
-    db.disconnect()
+Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowAlert: true, shouldPlaySound: true, shouldVibrate: true }) });
 
-initialize_database()
+async function registerForPushNotificationsAsync() {
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') { const { status } = await Notifications.requestPermissionsAsync(); finalStatus = status; }
+    if (finalStatus !== 'granted') return;
+    try { await Notifications.getExpoPushTokenAsync({ projectId: Constants.expoConfig?.extra?.eas?.projectId }); } catch (e) {}
+  }
+}
 
-@app.route('/')
-def home():
-    return jsonify({
-        'name': 'SuperEnalotto Analyzer API',
-        'version': '1.0.0',
-        'status': 'active',
-        'database': 'ready'
-    })
+async function scheduleAnalysisNotification() {
+  await Notifications.scheduleNotificationAsync({ content: { title: 'SuperEnalotto Analyzer', body: 'Nuova analisi disponibile!' }, trigger: { seconds: 2 } });
+}
 
-@app.route('/api/health')
-def health_check():
-    try:
-        if not db.conn:
-            db.connect()
-        count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
-        last_date = db.cursor.execute('SELECT MAX(extraction_date) FROM extractions').fetchone()[0]
-        return jsonify({
-            'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
-            'extractions_count': count,
-            'last_extraction': last_date
-        })
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)})
+// SPLASH
+function SplashScreen({ navigation }) {
+  const { isDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
+  useEffect(() => { registerForPushNotificationsAsync(); setTimeout(async () => { const termsAccepted = await AsyncStorage.getItem('termsAccepted'); const user = await AsyncStorage.getItem('user'); if (!termsAccepted) navigation.replace('Terms'); else if (user) navigation.replace('Home'); else navigation.replace('Login'); }, 2000); }, []);
+  return (<View style={[styles.splashContainer, { backgroundColor: theme.header }]}><Text style={styles.splashEmoji}>🎯</Text><Text style={styles.splashTitle}>SuperEnalotto</Text><Text style={styles.splashSubtitle}>Analyzer</Text><ActivityIndicator size="large" color="#fff" style={{ marginTop: 40 }} /><Text style={styles.splashLoading}>Caricamento...</Text></View>);
+}
 
-@app.route('/api/analyze', methods=['POST'])
-def analyze_numbers():
-    try:
-        data = request.get_json() or {}
-        period = data.get('period', 'all')
-        
-        if not db.conn:
-            db.connect()
-        
-        analyzer = SuperEnalottoAnalyzer(db)
-        results = analyzer.perform_complete_analysis(period=period)
-        
-        if 'error' in results:
-            return jsonify(results), 400
-        return jsonify(results)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// TERMINI
+function TermsScreen({ navigation }) {
+  const [isMinor, setIsMinor] = useState(null); const { isDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
+  const handleAccept = async () => { if (isMinor === null) { Vibration.vibrate(200); Alert.alert('Eta richiesta', 'Seleziona maggiorenne o minorenne.'); return; } await AsyncStorage.setItem('termsAccepted', 'true'); if (isMinor) { Alert.alert('Attenzione', 'Solo scopi statistici.', [{ text: 'Ho capito', onPress: () => navigation.replace('Login') }]); } else { navigation.replace('Login'); } };
+  return (<ScrollView style={[styles.container, { backgroundColor: theme.bg }]}><View style={[styles.loginHeader, { backgroundColor: theme.header }]}><Text style={styles.loginIcon}>📜</Text><Text style={styles.title}>Termini di Utilizzo</Text></View><View style={[styles.termsCard, { backgroundColor: theme.card }]}><Text style={[styles.termsText, { color: theme.subtext }]}>Benvenuto. Analisi statistiche a scopo informativo. Gioco responsabile: 800 558 822. Vietato ai minori di 18 anni.</Text></View><View style={[styles.ageCard, { backgroundColor: theme.card }]}><View style={styles.ageRow}><TouchableOpacity style={[styles.ageButton, { backgroundColor: isMinor === false ? '#4caf50' : theme.badge }]} onPress={() => setIsMinor(false)}><Text style={[styles.ageButtonText, { color: isMinor === false ? '#fff' : theme.text }]}>✅ Maggiorenne</Text></TouchableOpacity><TouchableOpacity style={[styles.ageButton, { backgroundColor: isMinor === true ? '#ff9800' : theme.badge }]} onPress={() => setIsMinor(true)}><Text style={[styles.ageButtonText, { color: isMinor === true ? '#fff' : theme.text }]}>🔞 Minorenne</Text></TouchableOpacity></View></View><View style={styles.actionRow}><TouchableOpacity style={styles.refuseButton} onPress={() => Alert.alert('Accesso negato', '', [{ text: 'Esci', onPress: () => BackHandler.exitApp() }])}><Text style={styles.buttonText}>❌ RIFIUTA</Text></TouchableOpacity><TouchableOpacity style={styles.acceptButton} onPress={handleAccept}><Text style={styles.buttonText}>✅ ACCETTA</Text></TouchableOpacity></View></ScrollView>);
+}
 
-@app.route('/api/stats')
-def get_stats():
-    try:
-        if not db.conn:
-            db.connect()
-        count = db.cursor.execute('SELECT COUNT(*) FROM extractions').fetchone()[0]
-        first = db.cursor.execute('SELECT MIN(extraction_date) FROM extractions').fetchone()[0]
-        last = db.cursor.execute('SELECT MAX(extraction_date) FROM extractions').fetchone()[0]
-        return jsonify({
-            'total_extractions': count,
-            'first_extraction': first,
-            'last_extraction': last,
-            'numbers_analyzed': 90
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// LOGIN
+function LoginScreen({ navigation }) {
+  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [showPassword, setShowPassword] = useState(false); const [loading, setLoading] = useState(false);
+  const { isDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
+  const handleLogin = async () => { if (!email || !password) { Vibration.vibrate(200); Alert.alert('Errore', 'Inserisci email e password'); return; } setLoading(true); try { const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password }); if (res.data.success) { await AsyncStorage.setItem('user', JSON.stringify(res.data)); navigation.replace('Home'); } } catch (e) { Alert.alert('Errore', 'Credenziali non valide'); } finally { setLoading(false); } };
+  return (<View style={[styles.container, { backgroundColor: theme.bg }]}><View style={[styles.loginHeader, { backgroundColor: theme.header }]}><Text style={styles.loginIcon}>🎯</Text><Text style={styles.title}>SuperEnalotto Analyzer</Text></View><View style={styles.loginForm}><View style={styles.inputRow}><Text style={styles.inputIcon}>📧</Text><TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.inputText, borderColor: theme.border }]} placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#999" /></View><View style={styles.inputRow}><Text style={styles.inputIcon}>🔒</Text><TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.inputText, borderColor: theme.border }]} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} placeholderTextColor="#999" /><TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}><Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text></TouchableOpacity></View><TouchableOpacity style={styles.loginBtn} onPress={handleLogin} disabled={loading}><Text style={styles.buttonText}>{loading ? '⏳ Accesso...' : '🔓 ACCEDI'}</Text></TouchableOpacity><TouchableOpacity onPress={() => navigation.navigate('Register')}><Text style={[styles.linkText, { color: theme.text }]}>📝 Registrati</Text></TouchableOpacity></View></View>);
+}
 
-@app.route('/api/extractions', methods=['POST'])
-def add_extraction():
-    try:
-        data = request.get_json()
-        date = data.get('date')
-        numbers = data.get('numbers')
-        
-        if not date or not numbers or len(numbers) != 6:
-            return jsonify({'error': 'Data e 6 numeri richiesti'}), 400
-        
-        if any(n < 1 or n > 90 for n in numbers):
-            return jsonify({'error': 'Numeri devono essere tra 1 e 90'}), 400
-        
-        if not db.conn:
-            db.connect()
-        
-        db.cursor.execute('''
-            INSERT INTO extractions (extraction_date, n1, n2, n3, n4, n5, n6)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (date, numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5]))
-        
-        db.conn.commit()
-        db.update_number_statistics()
-        
-        return jsonify({'success': True, 'message': 'Estrazione aggiunta con successo'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// REGISTER
+function RegisterScreen({ navigation }) {
+  const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [showPassword, setShowPassword] = useState(false); const [loading, setLoading] = useState(false);
+  const { isDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
+  const handleRegister = async () => { if (!email || !password) { Vibration.vibrate(200); Alert.alert('Errore'); return; } if (password.length < 4) { Alert.alert('Errore', 'Password minima 4 caratteri'); return; } setLoading(true); try { const res = await axios.post(`${API_BASE_URL}/api/auth/register`, { email, password }); if (res.data.success) { Alert.alert('OK', 'Registrazione completata!'); navigation.goBack(); } } catch (e) { Alert.alert('Errore'); } finally { setLoading(false); } };
+  return (<View style={[styles.container, { backgroundColor: theme.bg }]}><View style={[styles.loginHeader, { backgroundColor: theme.header }]}><Text style={styles.loginIcon}>📝</Text><Text style={styles.title}>Registrazione</Text></View><View style={styles.loginForm}><View style={styles.inputRow}><Text style={styles.inputIcon}>📧</Text><TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.inputText, borderColor: theme.border }]} placeholder="Email" value={email} onChangeText={setEmail} placeholderTextColor="#999" /></View><View style={styles.inputRow}><Text style={styles.inputIcon}>🔒</Text><TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.inputText, borderColor: theme.border }]} placeholder="Password (min 4)" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} placeholderTextColor="#999" /><TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}><Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text></TouchableOpacity></View><TouchableOpacity style={styles.loginBtn} onPress={handleRegister} disabled={loading}><Text style={styles.buttonText}>{loading ? '⏳ Registrazione...' : '✅ REGISTRATI'}</Text></TouchableOpacity></View></View>);
+}
 
-@app.route('/api/extractions', methods=['GET'])
-def get_extractions():
-    try:
-        if not db.conn:
-            db.connect()
-        limit = request.args.get('limit', 50, type=int)
-        extractions = db.cursor.execute(
-            'SELECT * FROM extractions ORDER BY extraction_date DESC LIMIT ?', (limit,)
-        ).fetchall()
-        return jsonify([dict(row) for row in extractions])
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// HOME
+function HomeScreen({ navigation }) {
+  const [totalExtractions, setTotalExtractions] = useState(null); const [user, setUser] = useState(null);
+  const { isDark, setIsDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
+  useEffect(() => { fetchStats(); loadUser(); }, []);
+  const loadUser = async () => { const u = await AsyncStorage.getItem('user'); if (u) setUser(JSON.parse(u)); };
+  const fetchStats = async () => { try { const r = await axios.get(`${API_BASE_URL}/api/stats`); setTotalExtractions(r.data.total_extractions); } catch (e) {} };
+  const handleLogout = async () => { await AsyncStorage.removeItem('user'); navigation.replace('Login'); };
+  const getExtractionDays = () => { const today = new Date(); const d = today.getDay(); const ed = [2,4,5,6]; const m = new Date(today); m.setDate(today.getDate()-(d===0?6:d-1)); const wd = []; const dn = ['LUN','MAR','MER','GIO','VEN','SAB','DOM']; for(let i=0;i<7;i++){const dt=new Date(m);dt.setDate(m.getDate()+i);wd.push({day:dn[i],date:dt.getDate(),isToday:dt.toDateString()===today.toDateString(),isExtractionDay:ed.includes(dt.getDay())});} return wd; };
+  const weekDays = getExtractionDays();
+  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.header,{backgroundColor:theme.header}]}><Text style={styles.headerIcon}>🎯</Text><Text style={styles.title}>SuperEnalotto Analyzer</Text>{user&&<Text style={styles.welcomeText}>👋 {user.email}</Text>}</View><View style={[styles.statsBadge,{backgroundColor:theme.badge}]}><Text style={styles.statsBadgeIcon}>📊</Text><Text style={[styles.statsBadgeText,{color:theme.badgeText}]}>{totalExtractions?totalExtractions.toLocaleString():'...'} estrazioni</Text></View><View style={[styles.calendarCard,{backgroundColor:theme.card}]}><Text style={[styles.calendarTitle,{color:theme.text}]}>📅 Settimana</Text><View style={styles.calendarRow}>{weekDays.map((item,i)=>(<View key={i} style={styles.calendarDay}><Text style={[styles.calendarDayName,{color:theme.subtext}]}>{item.day}</Text><View style={[styles.calendarDayNumber,item.isToday&&styles.calendarToday,item.isExtractionDay&&styles.calendarExtraction]}><Text style={[styles.calendarDayText,{color:theme.text},(item.isToday||item.isExtractionDay)&&{color:'#fff',fontWeight:'bold'}]}>{item.date}</Text></View>{item.isExtractionDay&&<Text style={styles.extractionDot}>🎯</Text>}</View>))}</View></View><View style={styles.menuGrid}><TouchableOpacity style={[styles.menuItem,{backgroundColor:theme.card}]} onPress={()=>navigation.navigate('Analysis')}><Text style={styles.menuIcon}>🔮</Text><Text style={[styles.menuText,{color:theme.text}]}>Analisi</Text></TouchableOpacity><TouchableOpacity style={[styles.menuItem,{backgroundColor:theme.card}]} onPress={()=>navigation.navigate('Generator')}><Text style={styles.menuIcon}>🎲</Text><Text style={[styles.menuText,{color:theme.text}]}>Generatore</Text></TouchableOpacity><TouchableOpacity style={[styles.menuItem,{backgroundColor:theme.card}]} onPress={()=>navigation.navigate('Check')}><Text style={styles.menuIcon}>✅</Text><Text style={[styles.menuText,{color:theme.text}]}>Verifica</Text></TouchableOpacity><TouchableOpacity style={[styles.menuItem,{backgroundColor:theme.card}]} onPress={()=>navigation.navigate('ExtractionList')}><Text style={styles.menuIcon}>📋</Text><Text style={[styles.menuText,{color:theme.text}]}>Archivio</Text></TouchableOpacity><TouchableOpacity style={[styles.menuItem,{backgroundColor:theme.card}]} onPress={()=>navigation.navigate('AddExtraction')}><Text style={styles.menuIcon}>➕</Text><Text style={[styles.menuText,{color:theme.text}]}>Aggiungi</Text></TouchableOpacity><TouchableOpacity style={[styles.menuItem,{backgroundColor:theme.card}]} onPress={()=>navigation.navigate('Subscription')}><Text style={styles.menuIcon}>💳</Text><Text style={[styles.menuText,{color:theme.text}]}>Abbonamento</Text></TouchableOpacity><TouchableOpacity style={[styles.menuItem,{backgroundColor:theme.card}]} onPress={()=>setIsDark(!isDark)}><Text style={styles.menuIcon}>{isDark?'☀️':'🌙'}</Text><Text style={[styles.menuText,{color:theme.text}]}>{isDark?'Chiaro':'Scuro'}</Text></TouchableOpacity></View><View style={{height:30}}/><TouchableOpacity style={[styles.logoutButton,{marginBottom:50}]} onPress={handleLogout}><Text style={styles.buttonText}>🚪 LOGOUT</Text></TouchableOpacity></ScrollView>);
+}
 
-@app.route('/api/extractions/<date>', methods=['DELETE'])
-def delete_extraction(date):
-    try:
-        if not db.conn:
-            db.connect()
-        
-        db.cursor.execute('DELETE FROM extractions WHERE extraction_date = ?', (date,))
-        db.conn.commit()
-        db.update_number_statistics()
-        
-        return jsonify({'success': True, 'message': f'Estrazione del {date} rimossa con successo'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// ANALYSIS
+function AnalysisScreen({ navigation }) {
+  const [loading, setLoading] = useState(false); const [period, setPeriod] = useState('all');
+  const { isDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
+  const periods = [{id:'1m',name:'📅 Ultimo mese'},{id:'6m',name:'📅 Ultimi 6 mesi'},{id:'1y',name:'📅 Ultimo anno'},{id:'all',name:'📅 Dal 1997'}];
+  const performAnalysis = async () => { setLoading(true); try { const res = await axios.post(`${API_BASE_URL}/api/analyze`,{period}); Vibration.vibrate([0,50,50,50,50,50,100,50,200]); navigation.navigate('Results',{analysis:res.data,period}); } catch(e) { Alert.alert('Errore'); } finally { setLoading(false); } };
+  return (<View style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.analysisHeader,{backgroundColor:theme.card}]}><Text style={styles.analysisIcon}>🔮</Text><Text style={[styles.sectionTitle,{color:theme.text}]}>Analisi Statistica</Text></View><View style={styles.periodSection}><Text style={[styles.label,{color:theme.text}]}>Periodo</Text><View style={styles.periodGrid}>{periods.map(p=>(<TouchableOpacity key={p.id} style={[styles.periodButton,{backgroundColor:period===p.id?'#1a237e':theme.card}]} onPress={()=>setPeriod(p.id)}><Text style={[styles.periodButtonText,{color:period===p.id?'#fff':theme.text}]}>{p.name}</Text></TouchableOpacity>))}</View></View>{loading?(<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#1a237e"/></View>):(<TouchableOpacity style={styles.bigAnalyzeButton} onPress={performAnalysis}><Text style={styles.bigButtonIcon}>🔮</Text><Text style={styles.bigButtonText}>AVVIA ANALISI</Text></TouchableOpacity>)}</View>);
+}
 
-# ============ AUTENTICAZIONE ============
+// RESULTS
+function ResultsScreen({ route }) {
+  const { analysis, period } = route.params || {};
+  const { isDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
+  const [favorites, setFavorites] = useState([]); const [showFavorites, setShowFavorites] = useState(false); const [generatedCombos, setGeneratedCombos] = useState(null);
+  useEffect(()=>{Vibration.vibrate([0,100,50,100,50,100,200]);loadFavorites();if(analysis?.migliori_sestine)setGeneratedCombos(analysis.migliori_sestine.slice(0,10));},[]);
+  const loadFavorites=async()=>{const f=await AsyncStorage.getItem('favorites');if(f)setFavorites(JSON.parse(f));};
+  const toggleFavorite=async(n)=>{let nf;if(favorites.includes(n))nf=favorites.filter(f=>f!==n);else nf=[...favorites,n].slice(0,9);setFavorites(nf);await AsyncStorage.setItem('favorites',JSON.stringify(nf));Vibration.vibrate(50);};
+  if(!analysis)return<View style={[styles.container,{backgroundColor:theme.bg}]}><Text>Nessun risultato</Text></View>;
+  const pl=period==='1m'?'(1 mese)':period==='6m'?'(6 mesi)':period==='1y'?'(1 anno)':'';
+  const dc=generatedCombos||analysis.migliori_sestine?.slice(0,10);
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.resultHeader,{backgroundColor:theme.header}]}><Text style={styles.resultIcon}>🏆</Text><Text style={styles.resultTitle}>Top 9 Numeri {pl}</Text><View style={styles.circleGrid}>{analysis.top_9_numeri?.map((num,i)=>{const isFav=favorites.includes(num);const size=i<3?70:55;const colors=['#FFD700','#C0C0C0','#CD7F32','#1a237e','#1a237e','#1a237e','#1a237e','#1a237e','#1a237e'];return(<TouchableOpacity key={i} onPress={()=>toggleFavorite(num)}><View style={[styles.circleNumber,{width:size,height:size,borderRadius:size/2,backgroundColor:i<3?colors[i]:theme.card,borderColor:i<3?colors[i]:theme.border,borderWidth:2}]}><Text style={[styles.circleText,{color:i<3?'#000':theme.text,fontSize:i<3?20:16}]}>{num}</Text>{i<3&&<Text style={styles.medalCircle}>{i===0?'🥇':i===1?'🥈':'🥉'}</Text>}{isFav&&<Text style={styles.favStar}>⭐</Text>}</View></TouchableOpacity>);})}</View></View><View style={styles.statsRow}><View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>🔥</Text><Text style={[styles.miniValue,{color:'#f44336'}]}>{analysis.statistiche?.numeri_hot}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Hot</Text></View><View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>❄️</Text><Text style={[styles.miniValue,{color:'#2196f3'}]}>{analysis.statistiche?.numeri_cold}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Cold</Text></View><View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>😐</Text><Text style={[styles.miniValue,{color:'#ff9800'}]}>{analysis.statistiche?.numeri_neutral}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Tiepidi</Text></View><View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>⭐</Text><Text style={[styles.miniValue,{color:theme.text}]}>{analysis.statistiche?.punteggio_massimo}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Max</Text></View></View><View style={styles.chartSection}><Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Frequenza Top 9</Text>{analysis.top_9_numeri&&analysis.analisi_dettagliata&&(<BarChart data={{labels:analysis.top_9_numeri.slice(0,9).map(n=>String(n)),datasets:[{data:analysis.top_9_numeri.slice(0,9).map(n=>{const f=analysis.analisi_dettagliata?.find(a=>a.identificativo===n);return f?.frequenza_recente||0;})}]}} width={Dimensions.get('window').width-30} height={200} chartConfig={{backgroundColor:theme.chartBg,backgroundGradientFrom:theme.chartBg,backgroundGradientTo:theme.chartGradient,decimalCount:0,color:(opacity=1)=>`rgba(76,175,80,${opacity})`,labelColor:(opacity=1)=>`rgba(255,255,255,${opacity})`,barPercentage:0.6}} style={{borderRadius:12,marginHorizontal:15}}/>)}</View><View style={styles.combinationsSection}><Text style={[styles.sectionTitle,{color:theme.text}]}>🎲 Migliori Sestine</Text>{dc&&dc.length>0?(dc.slice(0,10).map((c,i)=>(<View key={i} style={[styles.comboCard,{backgroundColor:theme.card},i===0&&styles.bestCombo]}><Text style={[styles.comboTitle,{color:theme.text}]}>{i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':''}Sestina #{i+1}</Text><View style={styles.comboNumbersRow}>{(c.numbers||[]).map((n,j)=>{const isFav=favorites.includes(n);return(<TouchableOpacity key={j} onPress={()=>toggleFavorite(n)}><View style={[styles.comboNumberBall,{backgroundColor:isFav?'#ffd700':theme.badge}]}><Text style={[styles.comboNumberText,{color:isFav?'#000':theme.text}]}>{n}</Text></View></TouchableOpacity>);})}</View><Text style={styles.comboScore}>⭐ {typeof c.combined_score==='number'?c.combined_score.toFixed(1):c.combined_score}</Text></View>))):(<Text style={[styles.description,{color:theme.subtext}]}>Clicca "Genera Sestine"</Text>)}</View></ScrollView>);
+}
 
-@app.route('/api/auth/register', methods=['POST'])
-def register():
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
-        
-        if not email or not password:
-            return jsonify({'error': 'Email e password richiesti'}), 400
-        
-        if len(password) < 4:
-            return jsonify({'error': 'Password minima 4 caratteri'}), 400
-        
-        if not db.conn:
-            db.connect()
-        
-        existing = db.cursor.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
-        if existing:
-            return jsonify({'error': 'Email già registrata'}), 400
-        
-        db.cursor.execute('INSERT INTO users (email, password, created_at) VALUES (?, ?, ?)',
-                         (email, password, datetime.now()))
-        db.conn.commit()
-        
-        return jsonify({'success': True, 'message': 'Registrazione completata con successo'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// GENERATOR
+function GeneratorScreen() {
+  const [generatedNumbers, setGeneratedNumbers] = useState([]); const [savedCombos, setSavedCombos] = useState([]); const [showArchive, setShowArchive] = useState(false); const [userStats, setUserStats] = useState({totalGenerations:0,totalSaved:0});
+  const {isDark}=useTheme(); const theme=isDark?darkTheme:lightTheme;
+  useEffect(()=>{loadSavedCombos();loadStats();},[]);
+  const loadSavedCombos=async()=>{const s=await AsyncStorage.getItem('generatedCombos');if(s)setSavedCombos(JSON.parse(s));};
+  const loadStats=async()=>{const s=await AsyncStorage.getItem('userStats');if(s)setUserStats(JSON.parse(s));};
+  const gen=()=>{Vibration.vibrate([0,50,50,50,100]);const n=[];while(n.length<6){const x=Math.floor(Math.random()*90)+1;if(!n.includes(x))n.push(x);}n.sort((a,b)=>a-b);setGeneratedNumbers(n);const ns={...userStats,totalGenerations:userStats.totalGenerations+1};setUserStats(ns);AsyncStorage.setItem('userStats',JSON.stringify(ns));};
+  const save=async()=>{if(generatedNumbers.length===0){Alert.alert('⚠️','Genera prima');return;}Vibration.vibrate([0,50,50,50,100]);const nc={id:Date.now(),numbers:[...generatedNumbers],date:new Date().toISOString().split('T')[0],time:new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})};const up=[nc,...savedCombos].slice(0,50);setSavedCombos(up);await AsyncStorage.setItem('generatedCombos',JSON.stringify(up));const ns={...userStats,totalSaved:userStats.totalSaved+1};setUserStats(ns);AsyncStorage.setItem('userStats',JSON.stringify(ns));Alert.alert('✅','Salvata!');};
+  const del=async(id)=>{const up=savedCombos.filter(c=>c.id!==id);setSavedCombos(up);await AsyncStorage.setItem('generatedCombos',JSON.stringify(up));};
+  const clear=()=>{Alert.alert('🗑️','Cancellare tutto?',[{text:'Annulla'},{text:'Cancella',style:'destructive',onPress:async()=>{setSavedCombos([]);await AsyncStorage.setItem('generatedCombos',JSON.stringify([]));}}]);};
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.dashboardCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>👤 Dashboard</Text><View style={styles.dashboardRow}><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{userStats.totalGenerations}</Text><Text style={[styles.dashboardLabel,{color:theme.subtext}]}>Generazioni</Text></View><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{userStats.totalSaved}</Text><Text style={[styles.dashboardLabel,{color:theme.subtext}]}>Salvati</Text></View><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{savedCombos.length}</Text><Text style={[styles.dashboardLabel,{color:theme.subtext}]}>Archivio</Text></View></View></View><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>🎲 Genera Numeri</Text>{generatedNumbers.length>0?(<View style={styles.generatedNumbersRow}>{generatedNumbers.map((n,i)=>(<View key={i} style={styles.generatedBall}><Text style={styles.generatedBallText}>{n}</Text></View>))}</View>):(<Text style={[styles.description,{color:theme.subtext}]}>Clicca "Genera"</Text>)}<View style={styles.actionButtons}><TouchableOpacity style={styles.generateBtn2} onPress={gen}><Text style={styles.buttonText}>🎲 Genera</Text></TouchableOpacity><TouchableOpacity style={[styles.saveBtn,{opacity:generatedNumbers.length>0?1:0.5}]} onPress={save}><Text style={styles.buttonText}>💾 Salva</Text></TouchableOpacity></View></View><TouchableOpacity style={[styles.archiveBtn,{backgroundColor:theme.card}]} onPress={()=>setShowArchive(!showArchive)}><Text style={[styles.sectionTitle,{color:theme.text}]}>{showArchive?'📋 Nascondi':'📋 Visualizza'} ({savedCombos.length})</Text></TouchableOpacity>{showArchive&&(<View style={[styles.archiveCard,{backgroundColor:theme.card}]}>{savedCombos.length>0?(<><TouchableOpacity style={styles.clearBtn} onPress={clear}><Text style={styles.clearBtnText}>🗑️ Cancella tutto</Text></TouchableOpacity>{savedCombos.map((c,i)=>(<View key={i} style={styles.archiveItem}><View style={styles.archiveHeader}><Text style={[styles.archiveDate,{color:theme.text}]}>📅 {c.date} {c.time}</Text><TouchableOpacity onPress={()=>del(c.id)}><Text style={styles.deleteIcon}>🗑️</Text></TouchableOpacity></View><View style={styles.archiveNumbersRow}>{c.numbers.map((n,j)=>(<View key={j} style={[styles.archiveBall,{backgroundColor:theme.badge}]}><Text style={[styles.archiveBallText,{color:theme.text}]}>{n}</Text></View>))}</View></View>))}</>):(<Text style={[styles.description,{color:theme.subtext}]}>Nessuna combinazione salvata</Text>)}</View>)}</ScrollView>);
+}
 
-@app.route('/api/auth/login', methods=['POST'])
-def login():
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
-        
-        if not email or not password:
-            return jsonify({'error': 'Email e password richiesti'}), 400
-        
-        if not db.conn:
-            db.connect()
-        
-        user = db.cursor.execute(
-            'SELECT id, email FROM users WHERE email = ? AND password = ?',
-            (email, password)
-        ).fetchone()
-        
-        if not user:
-            return jsonify({'error': 'Credenziali non valide'}), 401
-        
-        return jsonify({
-            'success': True,
-            'user_id': user['id'],
-            'email': user['email'],
-            'message': 'Login effettuato con successo'
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// CHECK SCREEN
+function CheckScreen() {
+  const [myNumbers, setMyNumbers] = useState(['','','','','','']); const [result, setResult] = useState(null); const [loading, setLoading] = useState(false);
+  const {isDark}=useTheme(); const theme=isDark?darkTheme:lightTheme;
+  const check=async()=>{const nums=myNumbers.map(Number);if(nums.some(n=>!n||n<1||n>90)){Vibration.vibrate(200);Alert.alert('Errore','Inserisci 6 numeri validi');return;}setLoading(true);try{const res=await axios.post(`${API_BASE_URL}/api/check`,{numbers:nums});setResult(res.data);Vibration.vibrate([0,50,50,50,100]);}catch(e){Alert.alert('Errore');}finally{setLoading(false);}};
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>✅ Verifica Giocata</Text><Text style={[styles.description,{color:theme.subtext}]}>Inserisci 6 numeri e verifica se sono mai usciti</Text><View style={styles.numbersInputRow}>{myNumbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText}]} value={n} onChangeText={t=>{let m=[...myNumbers];m[i]=t;setMyNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999"/>))}</View><TouchableOpacity style={styles.submitButton} onPress={check} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Verifica...':'🔍 VERIFICA'}</Text></TouchableOpacity></View>{result&&(<View style={[styles.resultCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Risultato</Text><View style={styles.resultRow}><Text style={[styles.resultLabel,{color:theme.subtext}]}>Tutti insieme:</Text><Text style={[styles.resultValue,{color:result.all_together?'#4caf50':'#f44336'}]}>{result.all_together?'✅ MAI USCITI':'❌ GIÀ USCITI'}</Text></View>{result.last_date&&<Text style={[styles.resultDate,{color:theme.subtext}]}>📅 Ultima volta: {result.last_date}</Text>}<Text style={[styles.resultSubtitle,{color:theme.text}]}>🎯 Singoli:</Text>{result.numbers_detail?.map((d,i)=>(<View key={i} style={styles.detailRow}><Text style={[styles.detailNum,{color:theme.text}]}>{d.number}</Text><Text style={[styles.detailStatus,{color:d.ever_seen?'#4caf50':'#f44336'}]}>{d.ever_seen?`✅ Uscito ${d.times}x`:'❌ Mai uscito'}</Text>{d.last_seen&&<Text style={[styles.detailDate,{color:theme.subtext}]}>Ultima: {d.last_seen}</Text>}</View>))}</View>)}</ScrollView>);
+}
 
-# ============ ADMIN / MIGRAZIONE ============
+// EXTRACTION LIST
+function ExtractionListScreen() {
+  const [extractions, setExtractions] = useState([]); const [loading, setLoading] = useState(true);
+  const {isDark}=useTheme(); const theme=isDark?darkTheme:lightTheme;
+  useEffect(()=>{fetchExtractions();},[]);
+  const fetchExtractions=async()=>{try{const r=await axios.get(`${API_BASE_URL}/api/extractions?limit=50`);setExtractions(r.data);}catch(e){}finally{setLoading(false);}};
+  if(loading)return<View style={[styles.container,{backgroundColor:theme.bg}]}><ActivityIndicator size="large" color="#1a237e" style={{marginTop:100}}/></View>;
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.listHeader,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📋 Archivio</Text></View>{extractions.map((ext,i)=>(<View key={i} style={[styles.extractionCard,{backgroundColor:theme.card}]}><Text style={[styles.extractionDate,{color:theme.text}]}>📅 {ext.extraction_date}</Text><Text style={[styles.extractionNumbers,{color:theme.inputText}]}>🎱 {ext.n1} - {ext.n2} - {ext.n3} - {ext.n4} - {ext.n5} - {ext.n6}</Text></View>))}</ScrollView>);
+}
 
-@app.route('/api/admin/migrate', methods=['POST'])
-def migrate_database():
-    try:
-        if not db.conn:
-            db.connect()
-        db.migrate_db()
-        return jsonify({'success': True, 'message': 'Migrazione database completata'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// ADD EXTRACTION
+function AddExtractionScreen({navigation}) {
+  const [date,setDate]=useState('');const [numbers,setNumbers]=useState(['','','','','','']);const [loading,setLoading]=useState(false);
+  const {isDark}=useTheme();const theme=isDark?darkTheme:lightTheme;
+  const handleSubmit=async()=>{if(!date||numbers.some(n=>!n||n<1||n>90)){Vibration.vibrate(200);Alert.alert('Errore');return;}setLoading(true);try{await axios.post(`${API_BASE_URL}/api/extractions`,{date,numbers:numbers.map(Number)});Vibration.vibrate([0,50,50,50,100]);Alert.alert('OK','Aggiunta!');navigation.goBack();}catch(e){Alert.alert('Errore');}finally{setLoading(false);}};
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.formHeader,{backgroundColor:theme.card}]}><Text style={styles.formIcon}>➕</Text><Text style={[styles.sectionTitle,{color:theme.text}]}>Nuova Estrazione</Text></View><View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>📅 Data</Text><TextInput style={[styles.input,{backgroundColor:theme.input,color:theme.inputText}]} value={date} onChangeText={setDate} placeholder="2026-08-01" placeholderTextColor="#999"/></View><View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>🎱 6 Numeri</Text><View style={styles.numbersInputRow}>{numbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText}]} value={n} onChangeText={t=>{let m=[...numbers];m[i]=t;setNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999"/>))}</View></View><TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Salvataggio...':'💾 SALVA'}</Text></TouchableOpacity></ScrollView>);
+}
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+// SUBSCRIPTION
+function SubscriptionScreen() {
+  const {isDark}=useTheme();const theme=isDark?darkTheme:lightTheme;
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.subscriptionHeader,{backgroundColor:theme.header}]}><Text style={styles.subscriptionIcon}>💎</Text><Text style={styles.title}>Piani</Text><Text style={styles.subtitle}>✅ 3 giorni gratis</Text></View>{[{id:'weekly',name:'📅 Settimanale',price:'2.99',days:7,color:'#4caf50'},{id:'monthly',name:'📅 Mensile',price:'9.99',days:30,color:'#2196f3'},{id:'annual',name:'📅 Annuale',price:'79.99',days:365,color:'#9c27b0'}].map(p=>(<TouchableOpacity key={p.id} style={[styles.planCard,{borderLeftColor:p.color,backgroundColor:theme.card}]}><View style={styles.planInfo}><Text style={[styles.planName,{color:theme.text}]}>{p.name}</Text><Text style={[styles.planDuration,{color:theme.subtext}]}>⏱️ {p.days}gg</Text></View><Text style={[styles.planPrice,{color:p.color}]}>€{p.price}</Text></TouchableOpacity>))}<View style={[styles.trialInfo,{backgroundColor:theme.badge}]}><Text style={styles.trialText}>🆓 3 giorni gratuiti</Text></View></ScrollView>);
+}
+
+// MAIN APP
+export default function App() {
+  const colorScheme=useColorScheme();const [isDark,setIsDark]=useState(colorScheme==='dark');
+  return(<ThemeContext.Provider value={{isDark,setIsDark}}><NavigationContainer><Stack.Navigator screenOptions={{headerStyle:{backgroundColor:isDark?'#000':'#1a237e'},headerTintColor:'#fff'}}><Stack.Screen name="Splash" component={SplashScreen} options={{headerShown:false}}/><Stack.Screen name="Terms" component={TermsScreen} options={{headerShown:false}}/><Stack.Screen name="Login" component={LoginScreen} options={{headerShown:false}}/><Stack.Screen name="Register" component={RegisterScreen} options={{title:'📝 Registrazione'}}/><Stack.Screen name="Home" component={HomeScreen} options={{title:'🏠 Home',headerLeft:()=>null}}/><Stack.Screen name="Analysis" component={AnalysisScreen} options={{title:'🔮 Analisi'}}/><Stack.Screen name="Results" component={ResultsScreen} options={{title:'🏆 Risultati'}}/><Stack.Screen name="Generator" component={GeneratorScreen} options={{title:'🎲 Generatore'}}/><Stack.Screen name="Check" component={CheckScreen} options={{title:'✅ Verifica Giocata'}}/><Stack.Screen name="ExtractionList" component={ExtractionListScreen} options={{title:'📋 Archivio'}}/><Stack.Screen name="AddExtraction" component={AddExtractionScreen} options={{title:'➕ Nuova'}}/><Stack.Screen name="Subscription" component={SubscriptionScreen} options={{title:'💎 Abbonamento'}}/></Stack.Navigator></NavigationContainer></ThemeContext.Provider>);
+}
+
+const styles = StyleSheet.create({
+  container:{flex:1},splashContainer:{flex:1,justifyContent:'center',alignItems:'center'},splashEmoji:{fontSize:80,marginBottom:10},splashTitle:{fontSize:36,fontWeight:'bold',color:'#fff'},splashSubtitle:{fontSize:20,color:'#b3b3b3',marginTop:5},splashLoading:{color:'#fff',marginTop:20,fontSize:14},
+  loginHeader:{padding:60,alignItems:'center'},loginIcon:{fontSize:60,marginBottom:10},loginForm:{padding:30,marginTop:20},inputRow:{flexDirection:'row',alignItems:'center',marginBottom:15},inputIcon:{fontSize:20,marginRight:10},input:{flex:1,borderWidth:1,borderRadius:8,padding:12,fontSize:16},eyeButton:{padding:10},eyeIcon:{fontSize:22},loginBtn:{backgroundColor:'#4caf50',padding:18,borderRadius:12,alignItems:'center',marginTop:10},linkText:{textAlign:'center',marginTop:20,fontSize:14},
+  header:{padding:30,alignItems:'center'},headerIcon:{fontSize:50,marginBottom:5},welcomeText:{fontSize:12,color:'#b3b3b3',marginTop:5},
+  menuGrid:{flexDirection:'row',flexWrap:'wrap',padding:15,gap:10},menuItem:{borderRadius:15,padding:20,alignItems:'center',width:'47%',elevation:3},menuIcon:{fontSize:35,marginBottom:8},menuText:{fontSize:13,fontWeight:'bold',textAlign:'center'},
+  statsBadge:{padding:15,marginHorizontal:15,marginTop:-10,borderRadius:10,alignItems:'center'},statsBadgeIcon:{fontSize:25},statsBadgeText:{fontSize:18,fontWeight:'bold'},
+  calendarCard:{margin:15,padding:15,borderRadius:12},calendarTitle:{fontSize:16,fontWeight:'bold',marginBottom:5},calendarRow:{flexDirection:'row',justifyContent:'space-between'},calendarDay:{alignItems:'center',flex:1},calendarDayName:{fontSize:10,marginBottom:4},calendarDayNumber:{width:30,height:30,borderRadius:15,justifyContent:'center',alignItems:'center'},calendarToday:{backgroundColor:'#1a237e'},calendarExtraction:{backgroundColor:'#f44336'},calendarDayText:{fontSize:13},extractionDot:{fontSize:8,marginTop:2},
+  sectionTitle:{fontSize:20,fontWeight:'bold',marginBottom:15},analysisIcon:{fontSize:60,textAlign:'center',marginBottom:10},periodSection:{padding:15},periodGrid:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:10},periodButton:{borderWidth:1,borderRadius:20,paddingHorizontal:14,paddingVertical:8},periodButtonText:{fontSize:13,fontWeight:'500'},
+  bigAnalyzeButton:{backgroundColor:'#4caf50',margin:20,padding:30,borderRadius:20,alignItems:'center'},bigButtonIcon:{fontSize:50,marginBottom:10},bigButtonText:{color:'#fff',fontSize:22,fontWeight:'bold'},
+  resultIcon:{fontSize:50,marginBottom:10},resultHeader:{padding:25,alignItems:'center'},resultTitle:{fontSize:22,color:'#fff',fontWeight:'bold',marginBottom:20},
+  circleGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:12,marginTop:15},circleNumber:{justifyContent:'center',alignItems:'center',elevation:3},circleText:{fontWeight:'bold'},medalCircle:{fontSize:14,position:'absolute',top:-8,right:-5},favStar:{fontSize:12,position:'absolute',bottom:-5},
+  statsRow:{flexDirection:'row',padding:10,gap:5},miniStat:{flex:1,borderRadius:10,padding:10,alignItems:'center'},miniIcon:{fontSize:20},miniValue:{fontSize:18,fontWeight:'bold'},miniLabel:{fontSize:10},
+  actionButtons:{flexDirection:'row',padding:10,gap:10},generateBtn:{flex:1,backgroundColor:'#4caf50',padding:15,borderRadius:12,alignItems:'center'},favBtn:{flex:1,padding:15,borderRadius:12,alignItems:'center'},
+  chartSection:{padding:15,marginBottom:15},combinationsSection:{padding:15},comboCard:{padding:18,marginVertical:6,borderRadius:12,elevation:2},comboTitle:{fontSize:16,fontWeight:'bold'},comboNumbersRow:{flexDirection:'row',gap:6,marginTop:8,marginBottom:5},comboNumberBall:{width:38,height:38,borderRadius:19,justifyContent:'center',alignItems:'center'},comboNumberText:{fontWeight:'bold',fontSize:13},comboScore:{fontSize:14,color:'#4caf50',marginTop:5,fontWeight:'bold'},
+  topBadge:{borderWidth:2,borderColor:'#ffd700'},bestCombo:{borderWidth:2,borderColor:'#ffd700'},
+  termsCard:{margin:15,padding:20,borderRadius:12},termsText:{fontSize:13,lineHeight:20,marginBottom:8},
+  ageCard:{margin:15,padding:20,borderRadius:12},ageRow:{flexDirection:'row',gap:10,marginTop:10},ageButton:{flex:1,padding:15,borderRadius:12,alignItems:'center'},ageButtonText:{fontSize:16,fontWeight:'bold'},
+  actionRow:{flexDirection:'row',margin:15,gap:10,marginBottom:30},refuseButton:{flex:1,backgroundColor:'#f44336',padding:18,borderRadius:12,alignItems:'center'},acceptButton:{flex:1,backgroundColor:'#4caf50',padding:18,borderRadius:12,alignItems:'center'},
+  title:{fontSize:28,fontWeight:'bold',color:'#fff'},buttonText:{color:'#fff',fontSize:18,fontWeight:'bold'},
+  logoutButton:{backgroundColor:'#f44336',marginHorizontal:15,marginTop:15,padding:15,borderRadius:12,alignItems:'center'},
+  analysisHeader:{padding:20,margin:15,borderRadius:12,alignItems:'center'},loadingContainer:{alignItems:'center',padding:60},
+  listHeader:{padding:20,margin:15,borderRadius:12,alignItems:'center'},extractionCard:{marginHorizontal:15,marginBottom:8,padding:15,borderRadius:10,elevation:2},extractionDate:{fontSize:14,fontWeight:'bold',marginBottom:5},extractionNumbers:{fontSize:18,fontWeight:'500'},
+  formHeader:{padding:20,margin:15,borderRadius:12,alignItems:'center'},formIcon:{fontSize:50,textAlign:'center',marginBottom:10},formGroup:{padding:15,marginHorizontal:15,marginBottom:10,borderRadius:12},label:{fontSize:16,fontWeight:'bold',marginBottom:10},numbersInputRow:{flexDirection:'row',justifyContent:'space-between',gap:8},numberInput:{borderWidth:1,borderRadius:8,padding:12,fontSize:18,width:48,textAlign:'center'},submitButton:{backgroundColor:'#ff9800',margin:15,padding:18,borderRadius:12,alignItems:'center'},
+  subscriptionHeader:{padding:30,alignItems:'center'},subscriptionIcon:{fontSize:50,marginBottom:10},planCard:{marginHorizontal:15,marginTop:15,padding:20,borderRadius:12,flexDirection:'row',alignItems:'center',borderLeftWidth:5},planInfo:{flex:1},planName:{fontSize:20,fontWeight:'bold'},planDuration:{fontSize:14,marginTop:5},planPrice:{fontSize:28,fontWeight:'bold'},
+  trialInfo:{margin:30,alignItems:'center',padding:20,borderRadius:12},trialText:{fontSize:18,fontWeight:'bold',color:'#2e7d32'},
+  dashboardCard:{margin:15,padding:15,borderRadius:12},dashboardRow:{flexDirection:'row',justifyContent:'space-around',marginTop:10},dashboardItem:{alignItems:'center'},dashboardValue:{fontSize:28,fontWeight:'bold',color:'#1a237e'},dashboardLabel:{fontSize:11,marginTop:3},
+  generatorCard:{margin:15,padding:15,borderRadius:12},generatedNumbersRow:{flexDirection:'row',justifyContent:'center',gap:10,marginVertical:15},generatedBall:{width:45,height:45,borderRadius:25,backgroundColor:'#1a237e',justifyContent:'center',alignItems:'center'},generatedBallText:{color:'#fff',fontSize:18,fontWeight:'bold'},generateBtn2:{flex:1,backgroundColor:'#1a237e',padding:15,borderRadius:12,alignItems:'center',marginRight:5},saveBtn:{flex:1,backgroundColor:'#ff9800',padding:15,borderRadius:12,alignItems:'center',marginLeft:5},
+  archiveBtn:{margin:15,padding:15,borderRadius:12},archiveCard:{marginHorizontal:15,marginBottom:30,padding:15,borderRadius:12},clearBtn:{alignItems:'flex-end',marginBottom:10},clearBtnText:{color:'#f44336',fontSize:14},archiveItem:{marginBottom:12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:'#eee'},archiveHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:5},archiveDate:{fontSize:13},deleteIcon:{fontSize:16},archiveNumbersRow:{flexDirection:'row',gap:6},archiveBall:{width:32,height:32,borderRadius:16,justifyContent:'center',alignItems:'center'},archiveBallText:{fontSize:13,fontWeight:'bold'},
+  resultCard:{margin:15,padding:15,borderRadius:12},resultRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:10},resultLabel:{fontSize:14},resultValue:{fontSize:14,fontWeight:'bold'},resultDate:{fontSize:12,marginBottom:10},resultSubtitle:{fontSize:16,fontWeight:'bold',marginTop:10,marginBottom:5},detailRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:5,borderBottomWidth:1,borderBottomColor:'#eee'},detailNum:{fontSize:16,fontWeight:'bold',width:30},detailStatus:{fontSize:14,flex:1},detailDate:{fontSize:12},
+  description:{fontSize:14,textAlign:'center',marginTop:10},
+  features:{padding:20,margin:15,borderRadius:15},featureGrid:{flexDirection:'row',flexWrap:'wrap',gap:8},featureBadge:{borderRadius:20,paddingHorizontal:12,paddingVertical:6},featureBadgeText:{fontSize:12,fontWeight:'500'},
+  calendarSubtitle:{fontSize:12,marginBottom:10},statsBadgeSubtext:{fontSize:12,color:'#666',marginTop:3},footer:{textAlign:'center',marginTop:20,marginBottom:30},loadingText:{fontSize:18,marginTop:20,fontWeight:'bold'},loadingSubtext:{fontSize:13,color:'#666',marginTop:8},bigButtonSubText:{color:'#e0e0e0',fontSize:12,marginTop:5},ageSubtext:{fontSize:12,marginTop:5},extractionExtra:{fontSize:12,color:'#666',marginTop:3},
+  numbersGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:10},numberBadge:{backgroundColor:'#fff',borderRadius:15,padding:12,alignItems:'center',width:65,elevation:3},rankText:{fontSize:10,color:'#666',fontWeight:'bold'},numberText:{fontSize:24,fontWeight:'bold',color:'#1a237e'},
+  comboNumbers:{fontSize:18,marginTop:8,fontWeight:'500'},medalIcon:{fontSize:16,position:'absolute',top:-10,right:-5},comboHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
+  statsGrid:{flexDirection:'row',justifyContent:'space-around',gap:10},statCard:{padding:20,borderRadius:12,alignItems:'center',flex:1,elevation:2},statIcon:{fontSize:25,marginBottom:5},statValue:{fontSize:28,fontWeight:'bold'},statLabel:{fontSize:12,color:'#666',marginTop:5},statsSection:{padding:15},
+  termsTitle:{fontSize:18,fontWeight:'bold',marginBottom:15},termsSubtitle:{fontSize:15,fontWeight:'bold',marginTop:12,marginBottom:5},trialSubtext:{fontSize:14,color:'#666',marginTop:5},titleSmall:{fontSize:22,fontWeight:'300',color:'#fff'},subtitle:{fontSize:14,color:'#b3b3b3',marginTop:10},resultHeaderOld:{padding:25,alignItems:'center'},
+});
