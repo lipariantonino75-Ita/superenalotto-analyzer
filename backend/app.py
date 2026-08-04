@@ -184,6 +184,18 @@ def sync_extractions_to_excel():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/jackpot', methods=['GET'])
+def get_jackpot():
+    try:
+        jackpot_data = {
+            'jackpot': 240410000,
+            'last_update': '2026-08-04',
+            'next_extraction': '2026-08-05',
+        }
+        return jsonify(jackpot_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/migrate', methods=['POST'])
 def migrate_database():
     try:
