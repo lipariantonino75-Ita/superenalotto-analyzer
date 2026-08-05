@@ -19,7 +19,6 @@ const lightTheme = { name: 'light', bg: '#f5f5f5', card: '#ffffff', text: '#1a23
 const darkTheme = { name: 'dark', bg: '#121212', card: '#1e1e1e', text: '#bb86fc', subtext: '#aaaaaa', header: '#000000', input: '#333333', inputText: '#ffffff', border: '#444444', badge: '#1e1e1e', badgeText: '#bb86fc', chartBg: '#000000', chartGradient: '#1a1a2e' };
 
 Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowAlert: true, shouldPlaySound: true, shouldVibrate: true }) });
-
 async function registerForPushNotificationsAsync() {
   if (Device.isDevice) {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -60,30 +59,18 @@ function RegisterScreen({ navigation }) {
   return (<View style={[styles.container, { backgroundColor: theme.bg }]}><View style={[styles.loginHeader, { backgroundColor: theme.header }]}><Text style={styles.loginIcon}>📝</Text><Text style={styles.title}>Registrazione</Text></View><View style={styles.loginForm}><View style={styles.inputRow}><Text style={styles.inputIcon}>📧</Text><TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.inputText, borderColor: theme.border }]} placeholder="Email" value={email} onChangeText={setEmail} placeholderTextColor="#999" /></View><View style={styles.inputRow}><Text style={styles.inputIcon}>🔒</Text><TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.inputText, borderColor: theme.border }]} placeholder="Password (min 4)" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} placeholderTextColor="#999" /><TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}><Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text></TouchableOpacity></View><TouchableOpacity style={styles.loginBtn} onPress={handleRegister} disabled={loading}><Text style={styles.buttonText}>{loading ? '⏳ Registrazione...' : '✅ REGISTRATI'}</Text></TouchableOpacity></View></View>);
 }
 
-// HOME CON JACKPOT
+// HOME (SENZA JACKPOT)
 function HomeScreen({ navigation }) {
-  const [totalExtractions, setTotalExtractions] = useState(null); const [user, setUser] = useState(null); const [jackpot, setJackpot] = useState(null);
+  const [totalExtractions, setTotalExtractions] = useState(null); const [user, setUser] = useState(null);
   const { isDark, setIsDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
-  useEffect(() => { fetchStats(); loadUser(); fetchJackpot(); }, []);
+  useEffect(() => { fetchStats(); loadUser(); }, []);
   const loadUser = async () => { const u = await AsyncStorage.getItem('user'); if (u) setUser(JSON.parse(u)); };
   const fetchStats = async () => { try { const r = await axios.get(`${API_BASE_URL}/api/stats`); setTotalExtractions(r.data.total_extractions); } catch (e) {} };
-  const fetchJackpot = async () => { try { const lastJackpot = 85000000; const daysSince = Math.floor((new Date() - new Date('2026-07-31')) / (1000*60*60*24)); setJackpot(lastJackpot + (daysSince * 2000000)); } catch (e) {} };
   const handleLogout = async () => { await AsyncStorage.removeItem('user'); navigation.replace('Login'); };
   const getExtractionDays = () => { const today = new Date(); const d = today.getDay(); const ed = [2,4,5,6]; const m = new Date(today); m.setDate(today.getDate()-(d===0?6:d-1)); const wd = []; const dn = ['LUN','MAR','MER','GIO','VEN','SAB','DOM']; for(let i=0;i<7;i++){const dt=new Date(m);dt.setDate(m.getDate()+i);wd.push({day:dn[i],date:dt.getDate(),isToday:dt.toDateString()===today.toDateString(),isExtractionDay:ed.includes(dt.getDay())});} return wd; };
   const weekDays = getExtractionDays();
   return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}>
     <View style={[styles.header,{backgroundColor:theme.header}]}><Text style={styles.headerIcon}>🎯</Text><Text style={styles.title}>SuperEnalotto Analyzer</Text>{user&&<Text style={styles.welcomeText}>👋 {user.email}</Text>}</View>
-    
-    {/* JACKPOT */}
-    {jackpot && (
-      <View style={styles.jackpotCard}>
-        <Text style={styles.jackpotIcon}>💰</Text>
-        <Text style={styles.jackpotLabel}>JACKPOT STIMATO</Text>
-        <Text style={styles.jackpotValue}>€ {(jackpot / 1000000).toFixed(0)} MILIONI</Text>
-        <Text style={styles.jackpotSubtext}>Prossima estrazione: ore 20:00</Text>
-      </View>
-    )}
-
     <View style={[styles.statsBadge,{backgroundColor:theme.badge}]}><Text style={styles.statsBadgeIcon}>📊</Text><Text style={[styles.statsBadgeText,{color:theme.badgeText}]}>{totalExtractions?totalExtractions.toLocaleString():'...'} estrazioni</Text></View>
     <View style={[styles.calendarCard,{backgroundColor:theme.card}]}><Text style={[styles.calendarTitle,{color:theme.text}]}>📅 Settimana</Text><View style={styles.calendarRow}>{weekDays.map((item,i)=>(<View key={i} style={styles.calendarDay}><Text style={[styles.calendarDayName,{color:theme.subtext}]}>{item.day}</Text><View style={[styles.calendarDayNumber,item.isToday&&styles.calendarToday,item.isExtractionDay&&styles.calendarExtraction]}><Text style={[styles.calendarDayText,{color:theme.text},(item.isToday||item.isExtractionDay)&&{color:'#fff',fontWeight:'bold'}]}>{item.date}</Text></View>{item.isExtractionDay&&<Text style={styles.extractionDot}>🎯</Text>}</View>))}</View></View>
     <View style={styles.menuGrid}>
@@ -138,7 +125,7 @@ function GeneratorScreen() {
   return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.dashboardCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>👤 Dashboard</Text><View style={styles.dashboardRow}><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{userStats.totalGenerations}</Text><Text style={[styles.dashboardLabel,{color:theme.subtext}]}>Generazioni</Text></View><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{userStats.totalSaved}</Text><Text style={[styles.dashboardLabel,{color:theme.subtext}]}>Salvati</Text></View><View style={styles.dashboardItem}><Text style={styles.dashboardValue}>{savedCombos.length}</Text><Text style={[styles.dashboardLabel,{color:theme.subtext}]}>Archivio</Text></View></View></View><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>🎲 Genera Numeri</Text>{generatedNumbers.length>0?(<View style={styles.generatedNumbersRow}>{generatedNumbers.map((n,i)=>(<View key={i} style={styles.generatedBall}><Text style={styles.generatedBallText}>{n}</Text></View>))}</View>):(<Text style={[styles.description,{color:theme.subtext}]}>Clicca "Genera"</Text>)}<View style={styles.actionButtons}><TouchableOpacity style={styles.generateBtn2} onPress={gen}><Text style={styles.buttonText}>🎲 Genera</Text></TouchableOpacity><TouchableOpacity style={[styles.saveBtn,{opacity:generatedNumbers.length>0?1:0.5}]} onPress={save}><Text style={styles.buttonText}>💾 Salva</Text></TouchableOpacity></View></View><TouchableOpacity style={[styles.archiveBtn,{backgroundColor:theme.card}]} onPress={()=>setShowArchive(!showArchive)}><Text style={[styles.sectionTitle,{color:theme.text}]}>{showArchive?'📋 Nascondi':'📋 Visualizza'} ({savedCombos.length})</Text></TouchableOpacity>{showArchive&&(<View style={[styles.archiveCard,{backgroundColor:theme.card}]}>{savedCombos.length>0?(<><TouchableOpacity style={styles.clearBtn} onPress={clear}><Text style={styles.clearBtnText}>🗑️ Cancella tutto</Text></TouchableOpacity>{savedCombos.map((c,i)=>(<View key={i} style={styles.archiveItem}><View style={styles.archiveHeader}><Text style={[styles.archiveDate,{color:theme.text}]}>📅 {c.date} {c.time}</Text><TouchableOpacity onPress={()=>del(c.id)}><Text style={styles.deleteIcon}>🗑️</Text></TouchableOpacity></View><View style={styles.archiveNumbersRow}>{c.numbers.map((n,j)=>(<View key={j} style={[styles.archiveBall,{backgroundColor:theme.badge}]}><Text style={[styles.archiveBallText,{color:theme.text}]}>{n}</Text></View>))}</View></View>))}</>):(<Text style={[styles.description,{color:theme.subtext}]}>Nessuna combinazione salvata</Text>)}</View>)}</ScrollView>);
 }
 
-// CHECK SCREEN
+// CHECK
 function CheckScreen() {
   const [myNumbers, setMyNumbers] = useState(['','','','','','']); const [result, setResult] = useState(null); const [loading, setLoading] = useState(false);
   const {isDark}=useTheme(); const theme=isDark?darkTheme:lightTheme;
@@ -146,120 +133,62 @@ function CheckScreen() {
   return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>✅ Verifica Giocata</Text><Text style={[styles.description,{color:theme.subtext}]}>Inserisci 6 numeri e verifica se sono mai usciti</Text><View style={styles.numbersInputRow}>{myNumbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText}]} value={n} onChangeText={t=>{let m=[...myNumbers];m[i]=t;setMyNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999"/>))}</View><TouchableOpacity style={styles.submitButton} onPress={check} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Verifica...':'🔍 VERIFICA'}</Text></TouchableOpacity></View>{result&&(<View style={[styles.resultCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Risultato</Text><View style={styles.resultRow}><Text style={[styles.resultLabel,{color:theme.subtext}]}>Tutti insieme:</Text><Text style={[styles.resultValue,{color:result.all_together?'#4caf50':'#f44336'}]}>{result.all_together?'✅ MAI USCITI':'❌ GIÀ USCITI'}</Text></View>{result.last_date&&<Text style={[styles.resultDate,{color:theme.subtext}]}>📅 Ultima volta: {result.last_date}</Text>}<Text style={[styles.resultSubtitle,{color:theme.text}]}>🎯 Singoli:</Text>{result.numbers_detail?.map((d,i)=>(<View key={i} style={styles.detailRow}><Text style={[styles.detailNum,{color:theme.text}]}>{d.number}</Text><Text style={[styles.detailStatus,{color:d.ever_seen?'#4caf50':'#f44336'}]}>{d.ever_seen?`✅ Uscito ${d.times}x`:'❌ Mai uscito'}</Text>{d.last_seen&&<Text style={[styles.detailDate,{color:theme.subtext}]}>Ultima: {d.last_seen}</Text>}</View>))}</View>)}</ScrollView>);
 }
 
-// NUMBER MEANING SCREEN
+// NUMBER MEANING
 function NumberMeaningScreen() {
-  const { isDark } = useTheme();
-  const theme = isDark ? darkTheme : lightTheme;
+  const { isDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
   const numberMeanings = [
-    { number: 1, name: "L'Italia", meaning: "Il principio, l'inizio, l'unità" },
-    { number: 2, name: "La bambina", meaning: "La dualità, la coppia, l'equilibrio" },
-    { number: 3, name: "La gatta", meaning: "La creatività, l'espressione" },
-    { number: 4, name: "Il maiale", meaning: "La stabilità, la concretezza" },
-    { number: 5, name: "La mano", meaning: "Il cambiamento, la libertà" },
-    { number: 6, name: "La chella guarda in terra", meaning: "L'amore, la bellezza, l'armonia" },
-    { number: 7, name: "Il vaso di creta", meaning: "La spiritualità, la saggezza" },
-    { number: 8, name: "La Madonna", meaning: "Il successo, l'abbondanza" },
-    { number: 9, name: "La figliolanza", meaning: "La generosità, il completamento" },
-    { number: 10, name: "I fagioli", meaning: "Il ciclo completo, la perfezione" },
-    { number: 11, name: "I topolini", meaning: "La forza, la determinazione" },
-    { number: 12, name: "Il soldato", meaning: "Il sacrificio, la resilienza" },
-    { number: 13, name: "Sant'Antonio", meaning: "La trasformazione, la fortuna" },
-    { number: 14, name: "L'ubriaco", meaning: "Il movimento, il progresso" },
-    { number: 15, name: "Il ragazzo", meaning: "La giovinezza, la vitalità" },
-    { number: 16, name: "Il culo", meaning: "La struttura, la disciplina" },
-    { number: 17, name: "La disgrazia", meaning: "La speranza, l'ottimismo" },
-    { number: 18, name: "Il sangue", meaning: "La maturità, la responsabilità" },
-    { number: 19, name: "La risata", meaning: "La leadership, il coraggio" },
-    { number: 20, name: "La festa", meaning: "L'empatia, la pace" },
-    { number: 21, name: "La donna nuda", meaning: "L'ispirazione, l'intuizione" },
-    { number: 22, name: "Il pazzo", meaning: "La costruzione, il successo" },
-    { number: 23, name: "Lo scemo", meaning: "La comunicazione, la socialità" },
-    { number: 24, name: "Le guardie", meaning: "La protezione, la sicurezza" },
-    { number: 25, name: "Natale", meaning: "La gioia, la rinascita" },
-    { number: 26, name: "Anna", meaning: "La dolcezza, la pazienza" },
-    { number: 27, name: "Il cantante", meaning: "L'arte, l'espressione creativa" },
-    { number: 28, name: "Il seno", meaning: "Il nutrimento, la cura" },
-    { number: 29, name: "Il pene", meaning: "La virilità, l'energia creativa" },
-    { number: 30, name: "Il testicolo", meaning: "La potenza, la fertilità" },
-    { number: 31, name: "Il padrone di casa", meaning: "L'autorità, la guida" },
-    { number: 32, name: "Il capitone", meaning: "L'ostinazione, la tenacia" },
-    { number: 33, name: "Gli anni di Cristo", meaning: "Il sacrificio, la redenzione" },
-    { number: 34, name: "La testa", meaning: "L'intelligenza, la ragione" },
-    { number: 35, name: "L'uccellino", meaning: "La libertà, la leggerezza" },
-    { number: 36, name: "Le nacchere", meaning: "La musica, la gioia" },
-    { number: 37, name: "Il monaco", meaning: "La meditazione, la riflessione" },
-    { number: 38, name: "Le botte", meaning: "Il conflitto, la lotta" },
-    { number: 39, name: "Il cappio", meaning: "La tensione, il superamento" },
-    { number: 40, name: "La quarantena", meaning: "L'attesa, la purificazione" },
-    { number: 41, name: "Il coltello", meaning: "Il taglio netto, la decisione" },
-    { number: 42, name: "Il caffè", meaning: "L'energia, la socialità" },
-    { number: 43, name: "La donna al balcone", meaning: "L'attesa, la speranza" },
-    { number: 44, name: "La prigione", meaning: "La limitazione, la sfida" },
-    { number: 45, name: "Il vino", meaning: "La festa, la convivialità" },
-    { number: 46, name: "Il denaro", meaning: "La ricchezza, la prosperità" },
-    { number: 47, name: "Il morto", meaning: "La fine, il nuovo inizio" },
-    { number: 48, name: "Il morto che parla", meaning: "Il passato che ritorna" },
-    { number: 49, name: "La carne", meaning: "Il corpo, la fisicità" },
-    { number: 50, name: "Il pane", meaning: "Il nutrimento, il lavoro" },
-    { number: 51, name: "Il giardino", meaning: "La natura, la crescita" },
-    { number: 52, name: "La mamma", meaning: "L'amore, la protezione" },
-    { number: 53, name: "Il vecchio", meaning: "L'esperienza, la saggezza" },
-    { number: 54, name: "Il cappello", meaning: "Il ruolo, l'identità" },
-    { number: 55, name: "La musica", meaning: "L'armonia, l'arte" },
-    { number: 56, name: "La caduta", meaning: "L'ostacolo, la ripartenza" },
-    { number: 57, name: "Lo storpio", meaning: "La difficoltà, la forza interiore" },
-    { number: 58, name: "Il pacco", meaning: "Il dono, la sorpresa" },
-    { number: 59, name: "I capelli", meaning: "La forza, la vitalità" },
-    { number: 60, name: "La luna", meaning: "L'inconscio, i sogni" },
-    { number: 61, name: "Il cacciatore", meaning: "La ricerca, l'obiettivo" },
-    { number: 62, name: "Il morto ammazzato", meaning: "La violenza, la liberazione" },
-    { number: 63, name: "La sposa", meaning: "L'unione, il nuovo capitolo" },
-    { number: 64, name: "La marsina", meaning: "L'eleganza, la formalità" },
-    { number: 65, name: "Il pianto", meaning: "La tristezza, la purificazione" },
-    { number: 66, name: "Le due zitelle", meaning: "La solitudine, l'attesa" },
-    { number: 67, name: "Il totano", meaning: "La confusione, l'inganno" },
-    { number: 68, name: "La zuppa", meaning: "La varietà, l'abbondanza" },
-    { number: 69, name: "Il reciproco", meaning: "Lo scambio, l'equilibrio" },
-    { number: 70, name: "Il palazzo", meaning: "La grandezza, l'ambizione" },
-    { number: 71, name: "L'uomo di merda", meaning: "Il disprezzo, la critica" },
-    { number: 72, name: "La meraviglia", meaning: "Lo stupore, l'incanto" },
-    { number: 73, name: "L'ospedale", meaning: "La cura, la guarigione" },
-    { number: 74, name: "La grotta", meaning: "Il rifugio, il mistero" },
-    { number: 75, name: "Pulcinella", meaning: "L'ironia, la commedia" },
-    { number: 76, name: "La fontana", meaning: "L'abbondanza, il flusso" },
-    { number: 77, name: "Il diavolo", meaning: "La tentazione, la sfida" },
-    { number: 78, name: "La prostituta", meaning: "Il piacere, lo scambio" },
-    { number: 79, name: "Il ladro", meaning: "La perdita, l'attenzione" },
-    { number: 80, name: "La bocca", meaning: "La parola, l'espressione" },
-    { number: 81, name: "I fiori", meaning: "La bellezza, l'amore" },
-    { number: 82, name: "La tavola imbandita", meaning: "L'abbondanza, la famiglia" },
-    { number: 83, name: "Il maltempo", meaning: "Le difficoltà, la resilienza" },
-    { number: 84, name: "La chiesa", meaning: "La fede, la spiritualità" },
-    { number: 85, name: "L'anima", meaning: "L'essenza, lo spirito" },
-    { number: 86, name: "La bottega", meaning: "Il commercio, il lavoro" },
-    { number: 87, name: "Il gatto", meaning: "L'indipendenza, il mistero" },
-    { number: 88, name: "Il caciocavallo", meaning: "La tradizione, la semplicità" },
-    { number: 89, name: "La nonna", meaning: "La saggezza, l'amore familiare" },
-    { number: 90, name: "La paura", meaning: "Il timore, il coraggio" },
+    { number: 1, name: "L'Italia", meaning: "Il principio, l'inizio, l'unità" },{ number: 2, name: "La bambina", meaning: "La dualità, la coppia" },{ number: 3, name: "La gatta", meaning: "La creatività, l'espressione" },{ number: 4, name: "Il maiale", meaning: "La stabilità, la concretezza" },{ number: 5, name: "La mano", meaning: "Il cambiamento, la libertà" },{ number: 6, name: "La chella guarda in terra", meaning: "L'amore, la bellezza" },{ number: 7, name: "Il vaso di creta", meaning: "La spiritualità, la saggezza" },{ number: 8, name: "La Madonna", meaning: "Il successo, l'abbondanza" },{ number: 9, name: "La figliolanza", meaning: "La generosità" },{ number: 10, name: "I fagioli", meaning: "Il ciclo completo, la perfezione" },
+    { number: 11, name: "I topolini", meaning: "La forza, la determinazione" },{ number: 12, name: "Il soldato", meaning: "Il sacrificio, la resilienza" },{ number: 13, name: "Sant'Antonio", meaning: "La trasformazione, la fortuna" },{ number: 14, name: "L'ubriaco", meaning: "Il movimento, il progresso" },{ number: 15, name: "Il ragazzo", meaning: "La giovinezza, la vitalità" },{ number: 16, name: "Il culo", meaning: "La struttura, la disciplina" },{ number: 17, name: "La disgrazia", meaning: "La speranza" },{ number: 18, name: "Il sangue", meaning: "La maturità, la responsabilità" },{ number: 19, name: "La risata", meaning: "La leadership, il coraggio" },{ number: 20, name: "La festa", meaning: "L'empatia, la pace" },
+    { number: 21, name: "La donna nuda", meaning: "L'ispirazione, l'intuizione" },{ number: 22, name: "Il pazzo", meaning: "La costruzione, il successo" },{ number: 23, name: "Lo scemo", meaning: "La comunicazione" },{ number: 24, name: "Le guardie", meaning: "La protezione" },{ number: 25, name: "Natale", meaning: "La gioia, la rinascita" },{ number: 26, name: "Anna", meaning: "La dolcezza" },{ number: 27, name: "Il cantante", meaning: "L'arte, l'espressione" },{ number: 28, name: "Il seno", meaning: "Il nutrimento" },{ number: 29, name: "Il pene", meaning: "La virilità" },{ number: 30, name: "Il testicolo", meaning: "La potenza" },
+    { number: 31, name: "Il padrone di casa", meaning: "L'autorità" },{ number: 32, name: "Il capitone", meaning: "L'ostinazione" },{ number: 33, name: "Gli anni di Cristo", meaning: "Il sacrificio" },{ number: 34, name: "La testa", meaning: "L'intelligenza" },{ number: 35, name: "L'uccellino", meaning: "La libertà" },{ number: 36, name: "Le nacchere", meaning: "La musica" },{ number: 37, name: "Il monaco", meaning: "La meditazione" },{ number: 38, name: "Le botte", meaning: "Il conflitto" },{ number: 39, name: "Il cappio", meaning: "La tensione" },{ number: 40, name: "La quarantena", meaning: "L'attesa" },
+    { number: 41, name: "Il coltello", meaning: "La decisione" },{ number: 42, name: "Il caffè", meaning: "L'energia" },{ number: 43, name: "La donna al balcone", meaning: "L'attesa" },{ number: 44, name: "La prigione", meaning: "La limitazione" },{ number: 45, name: "Il vino", meaning: "La festa" },{ number: 46, name: "Il denaro", meaning: "La ricchezza" },{ number: 47, name: "Il morto", meaning: "Il nuovo inizio" },{ number: 48, name: "Il morto che parla", meaning: "Il passato" },{ number: 49, name: "La carne", meaning: "Il corpo" },{ number: 50, name: "Il pane", meaning: "Il nutrimento" },
+    { number: 51, name: "Il giardino", meaning: "La natura" },{ number: 52, name: "La mamma", meaning: "L'amore" },{ number: 53, name: "Il vecchio", meaning: "L'esperienza" },{ number: 54, name: "Il cappello", meaning: "L'identità" },{ number: 55, name: "La musica", meaning: "L'armonia" },{ number: 56, name: "La caduta", meaning: "L'ostacolo" },{ number: 57, name: "Lo storpio", meaning: "La forza interiore" },{ number: 58, name: "Il pacco", meaning: "La sorpresa" },{ number: 59, name: "I capelli", meaning: "La vitalità" },{ number: 60, name: "La luna", meaning: "I sogni" },
+    { number: 61, name: "Il cacciatore", meaning: "L'obiettivo" },{ number: 62, name: "Il morto ammazzato", meaning: "La liberazione" },{ number: 63, name: "La sposa", meaning: "L'unione" },{ number: 64, name: "La marsina", meaning: "L'eleganza" },{ number: 65, name: "Il pianto", meaning: "La purificazione" },{ number: 66, name: "Le due zitelle", meaning: "L'attesa" },{ number: 67, name: "Il totano", meaning: "L'inganno" },{ number: 68, name: "La zuppa", meaning: "La varietà" },{ number: 69, name: "Il reciproco", meaning: "Lo scambio" },{ number: 70, name: "Il palazzo", meaning: "L'ambizione" },
+    { number: 71, name: "L'uomo di merda", meaning: "La critica" },{ number: 72, name: "La meraviglia", meaning: "Lo stupore" },{ number: 73, name: "L'ospedale", meaning: "La cura" },{ number: 74, name: "La grotta", meaning: "Il rifugio" },{ number: 75, name: "Pulcinella", meaning: "L'ironia" },{ number: 76, name: "La fontana", meaning: "L'abbondanza" },{ number: 77, name: "Il diavolo", meaning: "La tentazione" },{ number: 78, name: "La prostituta", meaning: "Il piacere" },{ number: 79, name: "Il ladro", meaning: "La perdita" },{ number: 80, name: "La bocca", meaning: "L'espressione" },
+    { number: 81, name: "I fiori", meaning: "La bellezza" },{ number: 82, name: "La tavola imbandita", meaning: "L'abbondanza" },{ number: 83, name: "Il maltempo", meaning: "Le difficoltà" },{ number: 84, name: "La chiesa", meaning: "La fede" },{ number: 85, name: "L'anima", meaning: "L'essenza" },{ number: 86, name: "La bottega", meaning: "Il lavoro" },{ number: 87, name: "Il gatto", meaning: "L'indipendenza" },{ number: 88, name: "Il caciocavallo", meaning: "La tradizione" },{ number: 89, name: "La nonna", meaning: "La saggezza" },{ number: 90, name: "La paura", meaning: "Il coraggio" },
   ];
-  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>🔢 Significato dei Numeri</Text><Text style={[styles.description,{color:theme.subtext}]}>Smorfia Napoletana - Tutti i 90 numeri</Text></View>{numberMeanings.map((item, index) => (<View key={index} style={[styles.meaningCard,{backgroundColor:theme.card}]}><View style={styles.meaningNumberBadge}><Text style={styles.meaningNumberText}>{item.number}</Text></View><View style={styles.meaningInfo}><Text style={[styles.meaningName,{color:theme.text}]}>{item.name}</Text><Text style={[styles.meaningDesc,{color:theme.subtext}]}>{item.meaning}</Text></View></View>))}<View style={{height:30}}/></ScrollView>);
+  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>🔢 Significato dei Numeri</Text><Text style={[styles.description,{color:theme.subtext}]}>Smorfia Napoletana</Text></View>{numberMeanings.map((item, index) => (<View key={index} style={[styles.meaningCard,{backgroundColor:theme.card}]}><View style={styles.meaningNumberBadge}><Text style={styles.meaningNumberText}>{item.number}</Text></View><View style={styles.meaningInfo}><Text style={[styles.meaningName,{color:theme.text}]}>{item.name}</Text><Text style={[styles.meaningDesc,{color:theme.subtext}]}>{item.meaning}</Text></View></View>))}<View style={{height:30}}/></ScrollView>);
 }
 
-// EXTRACTION LIST, ADD EXTRACTION, SUBSCRIPTION
+// EXTRACTION LIST CON JOLLY E SUPERSTAR
 function ExtractionListScreen() {
   const [extractions, setExtractions] = useState([]); const [loading, setLoading] = useState(true);
   const {isDark}=useTheme(); const theme=isDark?darkTheme:lightTheme;
   useEffect(()=>{fetchExtractions();},[]);
   const fetchExtractions=async()=>{try{const r=await axios.get(`${API_BASE_URL}/api/extractions?limit=50`);setExtractions(r.data);}catch(e){}finally{setLoading(false);}};
   if(loading)return<View style={[styles.container,{backgroundColor:theme.bg}]}><ActivityIndicator size="large" color="#1a237e" style={{marginTop:100}}/></View>;
-  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.listHeader,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📋 Archivio</Text></View>{extractions.map((ext,i)=>(<View key={i} style={[styles.extractionCard,{backgroundColor:theme.card}]}><Text style={[styles.extractionDate,{color:theme.text}]}>📅 {ext.extraction_date}</Text><Text style={[styles.extractionNumbers,{color:theme.inputText}]}>🎱 {ext.n1} - {ext.n2} - {ext.n3} - {ext.n4} - {ext.n5} - {ext.n6}</Text></View>))}</ScrollView>);
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.listHeader,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📋 Archivio</Text></View>{extractions.map((ext,i)=>(<View key={i} style={[styles.extractionCard,{backgroundColor:theme.card}]}><Text style={[styles.extractionDate,{color:theme.text}]}>📅 {ext.extraction_date}</Text><Text style={[styles.extractionNumbers,{color:theme.inputText}]}>🎱 {ext.n1} - {ext.n2} - {ext.n3} - {ext.n4} - {ext.n5} - {ext.n6}</Text>{ext.jolly&&<Text style={styles.extractionExtra}>⭐ Jolly: {ext.jolly}</Text>}{ext.superstar&&<Text style={styles.extractionExtra}>🌟 SuperStar: {ext.superstar}</Text>}</View>))}</ScrollView>);
 }
+
+// ADD EXTRACTION CON JOLLY E SUPERSTAR
 function AddExtractionScreen({navigation}) {
-  const [date,setDate]=useState('');const [numbers,setNumbers]=useState(['','','','','','']);const [loading,setLoading]=useState(false);
+  const [date,setDate]=useState('');const [numbers,setNumbers]=useState(['','','','','','']);const [jolly,setJolly]=useState('');const [superstar,setSuperstar]=useState('');const [loading,setLoading]=useState(false);
   const {isDark}=useTheme();const theme=isDark?darkTheme:lightTheme;
-  const handleSubmit=async()=>{if(!date||numbers.some(n=>!n||n<1||n>90)){Vibration.vibrate(200);Alert.alert('Errore');return;}setLoading(true);try{await axios.post(`${API_BASE_URL}/api/extractions`,{date,numbers:numbers.map(Number)});Vibration.vibrate([0,50,50,50,100]);Alert.alert('OK','Aggiunta!');navigation.goBack();}catch(e){Alert.alert('Errore');}finally{setLoading(false);}};
-  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.formHeader,{backgroundColor:theme.card}]}><Text style={styles.formIcon}>➕</Text><Text style={[styles.sectionTitle,{color:theme.text}]}>Nuova Estrazione</Text></View><View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>📅 Data</Text><TextInput style={[styles.input,{backgroundColor:theme.input,color:theme.inputText}]} value={date} onChangeText={setDate} placeholder="AAAA-MM-GG" placeholderTextColor="#999"/></View><View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>🎱 6 Numeri</Text><View style={styles.numbersInputRow}>{numbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText}]} value={n} onChangeText={t=>{let m=[...numbers];m[i]=t;setNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999"/>))}</View></View><TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Salvataggio...':'💾 SALVA'}</Text></TouchableOpacity></ScrollView>);
+  const handleSubmit=async()=>{
+    if(!date||numbers.some(n=>!n||n<1||n>90)){Vibration.vibrate(200);Alert.alert('Errore','Inserisci data e 6 numeri validi');return;}
+    if(jolly&&(jolly<1||jolly>90)){Alert.alert('Errore','Jolly deve essere tra 1 e 90');return;}
+    if(superstar&&(superstar<1||superstar>90)){Alert.alert('Errore','SuperStar deve essere tra 1 e 90');return;}
+    setLoading(true);
+    try{
+      await axios.post(`${API_BASE_URL}/api/extractions`,{
+        date,numbers:numbers.map(Number),
+        jolly:jolly?Number(jolly):null,
+        superstar:superstar?Number(superstar):null
+      });
+      Vibration.vibrate([0,50,50,50,100]);Alert.alert('OK','Estrazione aggiunta!');navigation.goBack();
+    }catch(e){Alert.alert('Errore');}finally{setLoading(false);}
+  };
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}>
+    <View style={[styles.formHeader,{backgroundColor:theme.card}]}><Text style={styles.formIcon}>➕</Text><Text style={[styles.sectionTitle,{color:theme.text}]}>Nuova Estrazione</Text></View>
+    <View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>📅 Data</Text><TextInput style={[styles.input,{backgroundColor:theme.input,color:theme.inputText}]} value={date} onChangeText={setDate} placeholder="AAAA-MM-GG" placeholderTextColor="#999"/></View>
+    <View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>🎱 6 Numeri</Text><View style={styles.numbersInputRow}>{numbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText}]} value={n} onChangeText={t=>{let m=[...numbers];m[i]=t;setNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999"/>))}</View></View>
+    <View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>⭐ Jolly (opzionale)</Text><TextInput style={[styles.input,{backgroundColor:theme.input,color:theme.inputText}]} value={jolly} onChangeText={setJolly} keyboardType="numeric" maxLength={2} placeholder="1-90" placeholderTextColor="#999"/></View>
+    <View style={[styles.formGroup,{backgroundColor:theme.card}]}><Text style={[styles.label,{color:theme.text}]}>🌟 SuperStar (opzionale)</Text><TextInput style={[styles.input,{backgroundColor:theme.input,color:theme.inputText}]} value={superstar} onChangeText={setSuperstar} keyboardType="numeric" maxLength={2} placeholder="1-90" placeholderTextColor="#999"/></View>
+    <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Salvataggio...':'💾 SALVA'}</Text></TouchableOpacity>
+  </ScrollView>);
 }
+
+// SUBSCRIPTION
 function SubscriptionScreen() {
   const {isDark}=useTheme();const theme=isDark?darkTheme:lightTheme;
   return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.subscriptionHeader,{backgroundColor:theme.header}]}><Text style={styles.subscriptionIcon}>💎</Text><Text style={styles.title}>Piani</Text><Text style={styles.subtitle}>✅ 3 giorni gratis</Text></View>{[{id:'weekly',name:'📅 Settimanale',price:'2.99',days:7,color:'#4caf50'},{id:'monthly',name:'📅 Mensile',price:'9.99',days:30,color:'#2196f3'},{id:'annual',name:'📅 Annuale',price:'79.99',days:365,color:'#9c27b0'}].map(p=>(<TouchableOpacity key={p.id} style={[styles.planCard,{borderLeftColor:p.color,backgroundColor:theme.card}]}><View style={styles.planInfo}><Text style={[styles.planName,{color:theme.text}]}>{p.name}</Text><Text style={[styles.planDuration,{color:theme.subtext}]}>⏱️ {p.days}gg</Text></View><Text style={[styles.planPrice,{color:p.color}]}>€{p.price}</Text></TouchableOpacity>))}</ScrollView>);
@@ -275,11 +204,6 @@ const styles = StyleSheet.create({
   container:{flex:1},splashContainer:{flex:1,justifyContent:'center',alignItems:'center'},splashEmoji:{fontSize:80,marginBottom:10},splashTitle:{fontSize:36,fontWeight:'bold',color:'#fff'},splashSubtitle:{fontSize:20,color:'#b3b3b3',marginTop:5},splashLoading:{color:'#fff',marginTop:20,fontSize:14},
   loginHeader:{padding:60,alignItems:'center'},loginIcon:{fontSize:60,marginBottom:10},loginForm:{padding:30,marginTop:20},inputRow:{flexDirection:'row',alignItems:'center',marginBottom:15},inputIcon:{fontSize:20,marginRight:10},input:{flex:1,borderWidth:1,borderRadius:8,padding:12,fontSize:16},eyeButton:{padding:10},eyeIcon:{fontSize:22},loginBtn:{backgroundColor:'#4caf50',padding:18,borderRadius:12,alignItems:'center',marginTop:10},linkText:{textAlign:'center',marginTop:20,fontSize:14},
   header:{padding:30,alignItems:'center'},headerIcon:{fontSize:50,marginBottom:5},welcomeText:{fontSize:12,color:'#b3b3b3',marginTop:5},
-  jackpotCard:{margin:15,padding:15,borderRadius:12,alignItems:'center',borderWidth:2,borderColor:'#ff9800',backgroundColor:'#fff3e0'},
-  jackpotIcon:{fontSize:40,marginBottom:5},
-  jackpotLabel:{fontSize:12,fontWeight:'bold',color:'#e65100',letterSpacing:2},
-  jackpotValue:{fontSize:28,fontWeight:'bold',color:'#e65100',marginTop:5},
-  jackpotSubtext:{fontSize:12,color:'#bf360c',marginTop:8},
   menuGrid:{flexDirection:'row',flexWrap:'wrap',padding:15,gap:8},menuItem:{borderRadius:15,padding:15,alignItems:'center',width:'47%',elevation:3},menuIcon:{fontSize:30,marginBottom:6},menuText:{fontSize:12,fontWeight:'bold',textAlign:'center'},
   statsBadge:{padding:15,marginHorizontal:15,marginTop:-10,borderRadius:10,alignItems:'center'},statsBadgeIcon:{fontSize:25},statsBadgeText:{fontSize:18,fontWeight:'bold'},
   calendarCard:{margin:15,padding:15,borderRadius:12},calendarTitle:{fontSize:16,fontWeight:'bold',marginBottom:5},calendarRow:{flexDirection:'row',justifyContent:'space-between'},calendarDay:{alignItems:'center',flex:1},calendarDayName:{fontSize:10,marginBottom:4},calendarDayNumber:{width:30,height:30,borderRadius:15,justifyContent:'center',alignItems:'center'},calendarToday:{backgroundColor:'#1a237e'},calendarExtraction:{backgroundColor:'#f44336'},calendarDayText:{fontSize:13},extractionDot:{fontSize:8,marginTop:2},
@@ -297,19 +221,14 @@ const styles = StyleSheet.create({
   title:{fontSize:28,fontWeight:'bold',color:'#fff'},buttonText:{color:'#fff',fontSize:18,fontWeight:'bold'},
   logoutButton:{backgroundColor:'#f44336',marginHorizontal:15,marginTop:15,padding:15,borderRadius:12,alignItems:'center'},
   analysisHeader:{padding:20,margin:15,borderRadius:12,alignItems:'center'},loadingContainer:{alignItems:'center',padding:60},
-  listHeader:{padding:20,margin:15,borderRadius:12,alignItems:'center'},extractionCard:{marginHorizontal:15,marginBottom:8,padding:15,borderRadius:10,elevation:2},extractionDate:{fontSize:14,fontWeight:'bold',marginBottom:5},extractionNumbers:{fontSize:18,fontWeight:'500'},
+  listHeader:{padding:20,margin:15,borderRadius:12,alignItems:'center'},extractionCard:{marginHorizontal:15,marginBottom:8,padding:15,borderRadius:10,elevation:2},extractionDate:{fontSize:14,fontWeight:'bold',marginBottom:5},extractionNumbers:{fontSize:18,fontWeight:'500'},extractionExtra:{fontSize:12,color:'#666',marginTop:3},
   formHeader:{padding:20,margin:15,borderRadius:12,alignItems:'center'},formIcon:{fontSize:50,textAlign:'center',marginBottom:10},formGroup:{padding:15,marginHorizontal:15,marginBottom:10,borderRadius:12},label:{fontSize:16,fontWeight:'bold',marginBottom:10},numbersInputRow:{flexDirection:'row',justifyContent:'space-between',gap:8},numberInput:{borderWidth:1,borderRadius:8,padding:12,fontSize:18,width:48,textAlign:'center'},submitButton:{backgroundColor:'#ff9800',margin:15,padding:18,borderRadius:12,alignItems:'center'},
   subscriptionHeader:{padding:30,alignItems:'center'},subscriptionIcon:{fontSize:50,marginBottom:10},planCard:{marginHorizontal:15,marginTop:15,padding:20,borderRadius:12,flexDirection:'row',alignItems:'center',borderLeftWidth:5},planInfo:{flex:1},planName:{fontSize:20,fontWeight:'bold'},planDuration:{fontSize:14,marginTop:5},planPrice:{fontSize:28,fontWeight:'bold'},
   dashboardCard:{margin:15,padding:15,borderRadius:12},dashboardRow:{flexDirection:'row',justifyContent:'space-around',marginTop:10},dashboardItem:{alignItems:'center'},dashboardValue:{fontSize:28,fontWeight:'bold',color:'#1a237e'},dashboardLabel:{fontSize:11,marginTop:3},
   generatorCard:{margin:15,padding:15,borderRadius:12},generatedNumbersRow:{flexDirection:'row',justifyContent:'center',gap:10,marginVertical:15},generatedBall:{width:45,height:45,borderRadius:25,backgroundColor:'#1a237e',justifyContent:'center',alignItems:'center'},generatedBallText:{color:'#fff',fontSize:18,fontWeight:'bold'},generateBtn2:{flex:1,backgroundColor:'#1a237e',padding:15,borderRadius:12,alignItems:'center',marginRight:5},saveBtn:{flex:1,backgroundColor:'#ff9800',padding:15,borderRadius:12,alignItems:'center',marginLeft:5},
   archiveBtn:{margin:15,padding:15,borderRadius:12},archiveCard:{marginHorizontal:15,marginBottom:30,padding:15,borderRadius:12},clearBtn:{alignItems:'flex-end',marginBottom:10},clearBtnText:{color:'#f44336',fontSize:14},archiveItem:{marginBottom:12,paddingBottom:12,borderBottomWidth:1,borderBottomColor:'#eee'},archiveHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:5},archiveDate:{fontSize:13},deleteIcon:{fontSize:16},archiveNumbersRow:{flexDirection:'row',gap:6},archiveBall:{width:32,height:32,borderRadius:16,justifyContent:'center',alignItems:'center'},archiveBallText:{fontSize:13,fontWeight:'bold'},
   resultCard:{margin:15,padding:15,borderRadius:12},resultRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:10},resultLabel:{fontSize:14},resultValue:{fontSize:14,fontWeight:'bold'},resultDate:{fontSize:12,marginBottom:10},resultSubtitle:{fontSize:16,fontWeight:'bold',marginTop:10,marginBottom:5},detailRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:5,borderBottomWidth:1,borderBottomColor:'#eee'},detailNum:{fontSize:16,fontWeight:'bold',width:30},detailStatus:{fontSize:14,flex:1},detailDate:{fontSize:12},
-  meaningCard:{flexDirection:'row',marginHorizontal:15,marginBottom:6,padding:12,borderRadius:10,alignItems:'center',elevation:1},
-  meaningNumberBadge:{width:40,height:40,borderRadius:20,backgroundColor:'#1a237e',justifyContent:'center',alignItems:'center',marginRight:12},
-  meaningNumberText:{color:'#fff',fontSize:16,fontWeight:'bold'},
-  meaningInfo:{flex:1},
-  meaningName:{fontSize:15,fontWeight:'bold',marginBottom:2},
-  meaningDesc:{fontSize:12},
+  meaningCard:{flexDirection:'row',marginHorizontal:15,marginBottom:6,padding:12,borderRadius:10,alignItems:'center'},meaningNumberBadge:{width:40,height:40,borderRadius:20,backgroundColor:'#1a237e',justifyContent:'center',alignItems:'center',marginRight:12},meaningNumberText:{color:'#fff',fontSize:16,fontWeight:'bold'},meaningInfo:{flex:1},meaningName:{fontSize:15,fontWeight:'bold',marginBottom:2},meaningDesc:{fontSize:12},
   description:{fontSize:14,textAlign:'center',marginTop:10},
   trialInfo:{margin:30,alignItems:'center',padding:20,borderRadius:12},trialText:{fontSize:18,fontWeight:'bold',color:'#2e7d32'},
   calendarSubtitle:{fontSize:12,marginBottom:10},statsBadgeSubtext:{fontSize:12,color:'#666',marginTop:3},
