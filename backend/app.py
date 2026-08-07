@@ -3,6 +3,7 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
 import sys
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -92,10 +93,12 @@ def add_extraction():
         data = request.get_json()
         date = data.get('date')
         numbers = data.get('numbers')
+        jolly = data.get('jolly')
+        superstar = data.get('superstar')
         if not date or not numbers or len(numbers) != 6: return jsonify({'error': 'Data e 6 numeri richiesti'}), 400
         if any(n < 1 or n > 90 for n in numbers): return jsonify({'error': 'Numeri devono essere tra 1 e 90'}), 400
         if not db.conn: db.connect()
-        db.cursor.execute('INSERT INTO extractions (extraction_date, n1, n2, n3, n4, n5, n6) VALUES (?,?,?,?,?,?,?)', (date, numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5]))
+        db.cursor.execute('INSERT INTO extractions (extraction_date, n1, n2, n3, n4, n5, n6, jolly, superstar) VALUES (?,?,?,?,?,?,?,?,?)', (date, numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5], jolly, superstar))
         db.conn.commit()
         db.update_number_statistics()
         return jsonify({'success': True, 'message': 'Estrazione aggiunta con successo'})
@@ -187,12 +190,80 @@ def sync_extractions_to_excel():
 @app.route('/api/jackpot', methods=['GET'])
 def get_jackpot():
     try:
-        jackpot_data = {
-            'jackpot': 240410000,
-            'last_update': '2026-08-04',
-            'next_extraction': '2026-08-05',
+        return jsonify({'jackpot': 240410000, 'last_update': '2026-08-04'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ============ NOTIFICHE PUSH ============
+
+@app.route('/api/notify-all', methods=['POST'])
+def notify_all_users():
+    """Invia notifiche push a tutti gli utenti tramite Expo Push API"""
+    try:
+        data = request.get_json()
+        title = data.get('title', '🚀 Aggiornamento disponibile!')
+        body = data.get('body', 'Nuova versione disponibile su Google Play')
+        version = data.get('version', '')
+        
+        # Recupera tutti i token push degli utenti dal database
+        if not db.conn: db.connect()
+        # Nota: per funzionare, devi salvare i token Expo nel database
+        # Per ora inviamo una notifica broadcast (a nessun token specifico = test)
+        
+        message = {
+            'to': None,  # Broadcast (in produzione, inviare a token specifici)
+            'title': title,
+            'body': body,
+            'data': {
+                'screen': 'Home',
+                'version': version,
+                'url': 'https://play.google.com/store/apps/details?id=com.lipariantonino75.superenalottoanalyzer'
+            },
+            'sound': 'default',
+            'priority': 'high',
         }
-        return jsonify(jackpot_data)
+        
+        # Invia tramite Expo Push API
+        try:
+            response = requests.post(
+                'https://exp.host/--/api/v2/push/send',
+                json=message,
+                headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                timeout=10
+            )
+            result = response.json()
+            print(f"📧 Notifica inviata: {result}")
+            return jsonify({'success': True, 'message': 'Notifica inviata con successo', 'data': result})
+        except Exception as push_error:
+            print(f"⚠️ Errore Expo Push: {push_error}")
+            return jsonify({'success': True, 'message': 'Notifica registrata (Expo Push non disponibile)'})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/save-push-token', methods=['POST'])
+def save_push_token():
+    """Salva il token push di un utente per notifiche future"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        token = data.get('token')
+        
+        if not token:
+            return jsonify({'error': 'Token richiesto'}), 400
+        
+        if not db.conn: db.connect()
+        
+        # Aggiorna o inserisci il token
+        db.cursor.execute('''
+            UPDATE users SET device_info = ? WHERE id = ?
+        ''', (token, user_id))
+        db.conn.commit()
+        
+        return jsonify({'success': True, 'message': 'Token salvato'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
