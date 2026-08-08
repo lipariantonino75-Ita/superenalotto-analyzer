@@ -81,7 +81,7 @@ function AnalysisScreen({ navigation }) {
   return (<View style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.analysisHeader,{backgroundColor:theme.card}]}><Text style={styles.analysisIcon}>🔮</Text><Text style={[styles.sectionTitle,{color:theme.text}]}>Analisi Statistica</Text></View><View style={styles.periodSection}><Text style={[styles.label,{color:theme.text}]}>Periodo</Text><View style={styles.periodGrid}>{periods.map(p=>(<TouchableOpacity key={p.id} style={[styles.periodButton,{backgroundColor:period===p.id?'#1a237e':theme.card}]} onPress={()=>setPeriod(p.id)}><Text style={[styles.periodButtonText,{color:period===p.id?'#fff':theme.text}]}>{p.name}</Text></TouchableOpacity>))}</View></View>{loading?(<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#1a237e"/></View>):(<TouchableOpacity style={styles.bigAnalyzeButton} onPress={performAnalysis}><Text style={styles.bigButtonIcon}>🔮</Text><Text style={styles.bigButtonText}>AVVIA ANALISI</Text></TouchableOpacity>)}</View>);
 }
 
-// RESULTS CON HEATMAP
+// RESULTS CON CLASSIFICA DECINE
 function ResultsScreen({ route }) {
   const { analysis, period } = route.params || {};
   const { isDark } = useTheme();
@@ -89,7 +89,6 @@ function ResultsScreen({ route }) {
   const [favorites, setFavorites] = useState([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [generatedCombos, setGeneratedCombos] = useState(null);
-  const [showHeatmap, setShowHeatmap] = useState(false);
 
   useEffect(() => { Vibration.vibrate([0,100,50,100,50,100,200]); loadFavorites(); if (analysis?.migliori_sestine) setGeneratedCombos(analysis.migliori_sestine.slice(0, 10)); }, []);
   const loadFavorites = async () => { const f = await AsyncStorage.getItem('favorites'); if (f) setFavorites(JSON.parse(f)); };
@@ -100,11 +99,27 @@ function ResultsScreen({ route }) {
   const periodLabel = period==='1m'?'(1 mese)':period==='6m'?'(6 mesi)':period==='1y'?'(1 anno)':'';
   const displayCombos = generatedCombos || analysis.migliori_sestine?.slice(0, 10);
 
-  const getHeatColor = (freq, status) => {
-    if (status === 'HOT') { if (freq >= 7) return '#b71c1c'; if (freq >= 5) return '#e53935'; return '#ff5252'; }
-    if (status === 'COLD') { if (freq === 0) return '#90caf9'; if (freq <= 2) return '#64b5f6'; return '#42a5f5'; }
-    if (freq >= 6) return '#f9a825'; if (freq >= 4) return '#fdd835'; if (freq >= 2) return '#ffee58'; return '#fff9c4';
+  // Calcola classifica decine
+  const gruppi = {
+    '1-9': [1,2,3,4,5,6,7,8,9],
+    '10-19': [10,11,12,13,14,15,16,17,18,19],
+    '20-29': [20,21,22,23,24,25,26,27,28,29],
+    '30-39': [30,31,32,33,34,35,36,37,38,39],
+    '40-49': [40,41,42,43,44,45,46,47,48,49],
+    '50-59': [50,51,52,53,54,55,56,57,58,59],
+    '60-69': [60,61,62,63,64,65,66,67,68,69],
+    '70-79': [70,71,72,73,74,75,76,77,78,79],
+    '80-90': [80,81,82,83,84,85,86,87,88,89,90],
   };
+  const groupStats = Object.entries(gruppi).map(([name, nums]) => {
+    const freq = nums.reduce((sum, n) => {
+      const detail = analysis.analisi_dettagliata?.find(a => a.identificativo === n);
+      return sum + (detail?.frequenza_recente || 0);
+    }, 0);
+    return { name, freq };
+  });
+  groupStats.sort((a, b) => b.freq - a.freq);
+  const maxFreq = Math.max(...groupStats.map(g => g.freq), 1);
 
   return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}>
     <View style={[styles.resultHeader,{backgroundColor:theme.header}]}><Text style={styles.resultIcon}>🏆</Text><Text style={styles.resultTitle}>Top 9 Numeri {periodLabel}</Text>
@@ -116,41 +131,33 @@ function ResultsScreen({ route }) {
       <View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>😐</Text><Text style={[styles.miniValue,{color:'#ff9800'}]}>{analysis.statistiche?.numeri_neutral}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Tiepidi</Text></View>
       <View style={[styles.miniStat,{backgroundColor:theme.card}]}><Text style={styles.miniIcon}>⭐</Text><Text style={[styles.miniValue,{color:theme.text}]}>{analysis.statistiche?.punteggio_massimo}</Text><Text style={[styles.miniLabel,{color:theme.subtext}]}>Max</Text></View>
     </View>
+
+    {/* CLASSIFICA DECINE */}
+    <View style={[styles.chartSection,{backgroundColor:theme.card,marginHorizontal:15,borderRadius:12,padding:15}]}>
+      <Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Classifica Decine</Text>
+      {groupStats.map((g, i) => (
+        <View key={i} style={styles.groupRow}>
+          <Text style={[styles.groupRank,{color:theme.text}]}>#{i+1}</Text>
+          <Text style={[styles.groupName,{color:theme.text}]}>{g.name}</Text>
+          <View style={styles.groupBarContainer}>
+            <View style={[styles.groupBar, { width: `${(g.freq / maxFreq) * 100}%`, backgroundColor: i === 0 ? '#4caf50' : i < 3 ? '#8bc34a' : '#1a237e' }]} />
+          </View>
+          <Text style={[styles.groupFreq,{color:theme.subtext}]}>{g.freq}</Text>
+        </View>
+      ))}
+    </View>
+
     <View style={styles.actionButtons}>
       <TouchableOpacity style={styles.generateBtn} onPress={generateSestine}><Text style={styles.buttonText}>🎲 Genera Sestine</Text></TouchableOpacity>
       <TouchableOpacity style={[styles.favBtn,{backgroundColor:favorites.length>=6?'#ff9800':'#999'}]} onPress={generateFromFavorites}><Text style={styles.buttonText}>{favorites.length>=6?'⭐ Dai Preferiti':`⭐ Servono ${6-favorites.length} numeri`}</Text></TouchableOpacity>
     </View>
     {favorites.length>0&&(<View style={[styles.favSection,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>⭐ Preferiti ({favorites.length}/9)</Text><View style={styles.favRow}>{favorites.map((num,i)=>(<TouchableOpacity key={i} onPress={()=>toggleFavorite(num)}><View style={[styles.favCircle,{backgroundColor:theme.badge}]}><Text style={[styles.favCircleText,{color:theme.text}]}>{num}</Text></View></TouchableOpacity>))}</View></View>)}
-
-    {/* HEATMAP TOGGLE */}
-    <TouchableOpacity style={[styles.heatmapToggle,{backgroundColor:theme.card}]} onPress={()=>setShowHeatmap(!showHeatmap)}>
-      <Text style={[styles.sectionTitle,{color:theme.text}]}>{showHeatmap?'🗺️ Nascondi Heatmap':'🗺️ Mostra Heatmap 90 Numeri'}</Text>
-    </TouchableOpacity>
-
-    {/* HEATMAP 9x10 */}
-    {showHeatmap&&(<View style={[styles.heatmapCard,{backgroundColor:theme.card}]}>
-      <Text style={[styles.heatmapTitle,{color:theme.text}]}>🗺️ Mappa Frequenza Numeri</Text>
-      <View style={styles.heatmapLegend}>
-        <View style={styles.legendItem}><View style={[styles.legendBox,{backgroundColor:'#b71c1c'}]}/><Text style={[styles.legendLabel,{color:theme.subtext}]}>Hot+</Text></View>
-        <View style={styles.legendItem}><View style={[styles.legendBox,{backgroundColor:'#f9a825'}]}/><Text style={[styles.legendLabel,{color:theme.subtext}]}>Neutro</Text></View>
-        <View style={styles.legendItem}><View style={[styles.legendBox,{backgroundColor:'#90caf9'}]}/><Text style={[styles.legendLabel,{color:theme.subtext}]}>Cold</Text></View>
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View>
-          <View style={styles.hRow}><View style={styles.hHeader}><Text style={[styles.hHeaderText,{color:theme.subtext}]}> </Text></View>{[0,1,2,3,4,5,6,7,8,9].map(c=>(<View key={c} style={styles.hHeader}><Text style={[styles.hHeaderText,{color:theme.subtext}]}>{c}</Text></View>))}</View>
-          {[0,1,2,3,4,5,6,7,8].map(row=>(<View key={row} style={styles.hRow}><View style={styles.hHeader}><Text style={[styles.hHeaderText,{color:theme.subtext}]}>{row*10+1}-{row*10+10}</Text></View>
-            {[1,2,3,4,5,6,7,8,9,10].map(col=>{const num=row*10+col;if(num>90)return<View key={col} style={styles.hCell}><Text> </Text></View>;const detail=analysis.analisi_dettagliata?.find(a=>a.identificativo===num);const freq=detail?.frequenza_recente||0;const status=detail?.stato||'NEUTRAL';const isTop9=analysis.top_9_numeri?.includes(num);return(<TouchableOpacity key={col} onPress={()=>toggleFavorite(num)}><View style={[styles.hCell,{backgroundColor:getHeatColor(freq,status)},isTop9&&styles.hCellTop]}><Text style={[styles.hCellNum,{color:freq>5?'#fff':'#000',fontWeight:isTop9?'bold':'normal'}]}>{num}</Text><Text style={[styles.hCellFreq,{color:freq>5?'#fff':'#333'}]}>{freq}</Text>{isTop9&&<Text style={styles.hCellStar}>⭐</Text>}</View></TouchableOpacity>);})}
-          </View>))}
-        </View>
-      </ScrollView>
-    </View>)}
-
     <View style={styles.chartSection}><Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Frequenza Top 9</Text>{analysis.top_9_numeri&&analysis.analisi_dettagliata&&(<BarChart data={{labels:analysis.top_9_numeri.slice(0,9).map(n=>String(n)),datasets:[{data:analysis.top_9_numeri.slice(0,9).map(n=>{const f=analysis.analisi_dettagliata?.find(a=>a.identificativo===n);return f?.frequenza_recente||0;})}]}} width={Dimensions.get('window').width-30} height={200} chartConfig={{backgroundColor:theme.chartBg,backgroundGradientFrom:theme.chartBg,backgroundGradientTo:theme.chartGradient,decimalCount:0,color:(opacity=1)=>`rgba(76,175,80,${opacity})`,labelColor:(opacity=1)=>`rgba(255,255,255,${opacity})`,barPercentage:0.6}} style={{borderRadius:12,marginHorizontal:15}}/>)}</View>
     <View style={styles.combinationsSection}><Text style={[styles.sectionTitle,{color:theme.text}]}>{showFavorites?'⭐ Sestine dai Preferiti':'🎲 Migliori Sestine'}</Text>{displayCombos&&displayCombos.length>0?(displayCombos.slice(0,10).map((c,i)=>(<View key={i} style={[styles.comboCard,{backgroundColor:theme.card},i===0&&!showFavorites&&styles.bestCombo]}><Text style={[styles.comboTitle,{color:theme.text}]}>{i===0&&!showFavorites?'🥇 ':i===1&&!showFavorites?'🥈 ':i===2&&!showFavorites?'🥉 ':''}Sestina #{i+1}</Text><View style={styles.comboNumbersRow}>{(c.numbers||[]).map((n,j)=>{const isFav=favorites.includes(n);return(<TouchableOpacity key={j} onPress={()=>toggleFavorite(n)}><View style={[styles.comboNumberBall,{backgroundColor:isFav?'#ffd700':theme.badge}]}><Text style={[styles.comboNumberText,{color:isFav?'#000':theme.text}]}>{n}</Text></View></TouchableOpacity>);})}</View><Text style={styles.comboScore}>⭐ {typeof c.combined_score==='number'?c.combined_score.toFixed(1):c.combined_score}</Text></View>))):(<Text style={[styles.description,{color:theme.subtext}]}>Clicca "🎲 Genera Sestine"</Text>)}</View>
   </ScrollView>);
 }
 
-// GENERATOR, CHECK, NUMBER MEANING, EXTRACTION LIST, ADD EXTRACTION, SUBSCRIPTION (invariate - stesso codice di prima)
+// GENERATOR, CHECK, NUMBER MEANING, EXTRACTION LIST, ADD EXTRACTION, SUBSCRIPTION
 function GeneratorScreen() {
   const [generatedNumbers, setGeneratedNumbers] = useState([]); const [savedCombos, setSavedCombos] = useState([]); const [showArchive, setShowArchive] = useState(false); const [userStats, setUserStats] = useState({totalGenerations:0,totalSaved:0});
   const {isDark}=useTheme(); const theme=isDark?darkTheme:lightTheme;
@@ -167,14 +174,14 @@ function CheckScreen() {
   const [myNumbers, setMyNumbers] = useState(['','','','','','']); const [result, setResult] = useState(null); const [loading, setLoading] = useState(false);
   const {isDark}=useTheme(); const theme=isDark?darkTheme:lightTheme;
   const check=async()=>{const nums=myNumbers.map(Number);if(nums.some(n=>!n||n<1||n>90)){Vibration.vibrate(200);Alert.alert('Errore','Inserisci 6 numeri validi');return;}setLoading(true);try{const res=await axios.post(`${API_BASE_URL}/api/check`,{numbers:nums});setResult(res.data);Vibration.vibrate([0,50,50,50,100]);}catch(e){Alert.alert('Errore');}finally{setLoading(false);}};
-  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>✅ Verifica Giocata</Text><Text style={[styles.description,{color:theme.subtext}]}>Inserisci 6 numeri e verifica se sono mai usciti</Text><View style={styles.numbersInputRow}>{myNumbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText}]} value={n} onChangeText={t=>{let m=[...myNumbers];m[i]=t;setMyNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999"/>))}</View><TouchableOpacity style={styles.submitButton} onPress={check} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Verifica...':'🔍 VERIFICA'}</Text></TouchableOpacity></View>{result&&(<View style={[styles.resultCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Risultato</Text><View style={styles.resultRow}><Text style={[styles.resultLabel,{color:theme.subtext}]}>Tutti insieme:</Text><Text style={[styles.resultValue,{color:result.all_together?'#4caf50':'#f44336'}]}>{result.all_together?'✅ MAI USCITI':'❌ GIÀ USCITI'}</Text></View>{result.last_date&&<Text style={[styles.resultDate,{color:theme.subtext}]}>📅 Ultima volta: {result.last_date}</Text>}<Text style={[styles.resultSubtitle,{color:theme.text}]}>🎯 Singoli:</Text>{result.numbers_detail?.map((d,i)=>(<View key={i} style={styles.detailRow}><Text style={[styles.detailNum,{color:theme.text}]}>{d.number}</Text><Text style={[styles.detailStatus,{color:d.ever_seen?'#4caf50':'#f44336'}]}>{d.ever_seen?`✅ Uscito ${d.times}x`:'❌ Mai uscito'}</Text>{d.last_seen&&<Text style={[styles.detailDate,{color:theme.subtext}]}>Ultima: {d.last_seen}</Text>}</View>))}</View>)}</ScrollView>);
+  return(<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>✅ Verifica Giocata</Text><View style={styles.numbersInputRow}>{myNumbers.map((n,i)=>(<TextInput key={i} style={[styles.numberInput,{backgroundColor:theme.input,color:theme.inputText}]} value={n} onChangeText={t=>{let m=[...myNumbers];m[i]=t;setMyNumbers(m);}} keyboardType="numeric" maxLength={2} placeholder={String(i+1)} placeholderTextColor="#999"/>))}</View><TouchableOpacity style={styles.submitButton} onPress={check} disabled={loading}><Text style={styles.buttonText}>{loading?'⏳ Verifica...':'🔍 VERIFICA'}</Text></TouchableOpacity></View>{result&&(<View style={[styles.resultCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>📊 Risultato</Text><View style={styles.resultRow}><Text style={[styles.resultLabel,{color:theme.subtext}]}>Tutti insieme:</Text><Text style={[styles.resultValue,{color:result.all_together?'#4caf50':'#f44336'}]}>{result.all_together?'✅ MAI USCITI':'❌ GIÀ USCITI'}</Text></View>{result.last_date&&<Text style={[styles.resultDate,{color:theme.subtext}]}>📅 Ultima volta: {result.last_date}</Text>}<Text style={[styles.resultSubtitle,{color:theme.text}]}>🎯 Singoli:</Text>{result.numbers_detail?.map((d,i)=>(<View key={i} style={styles.detailRow}><Text style={[styles.detailNum,{color:theme.text}]}>{d.number}</Text><Text style={[styles.detailStatus,{color:d.ever_seen?'#4caf50':'#f44336'}]}>{d.ever_seen?`✅ Uscito ${d.times}x`:'❌ Mai uscito'}</Text>{d.last_seen&&<Text style={[styles.detailDate,{color:theme.subtext}]}>Ultima: {d.last_seen}</Text>}</View>))}</View>)}</ScrollView>);
 }
 function NumberMeaningScreen() {
   const { isDark } = useTheme(); const theme = isDark ? darkTheme : lightTheme;
   const numberMeanings = [
-    { number: 1, name: "L'Italia", meaning: "Il principio, l'inizio, l'unità" },{ number: 2, name: "La bambina", meaning: "La dualità, la coppia" },{ number: 3, name: "La gatta", meaning: "La creatività, l'espressione" },{ number: 4, name: "Il maiale", meaning: "La stabilità, la concretezza" },{ number: 5, name: "La mano", meaning: "Il cambiamento, la libertà" },{ number: 6, name: "La chella guarda in terra", meaning: "L'amore, la bellezza" },{ number: 7, name: "Il vaso di creta", meaning: "La spiritualità, la saggezza" },{ number: 8, name: "La Madonna", meaning: "Il successo, l'abbondanza" },{ number: 9, name: "La figliolanza", meaning: "La generosità" },{ number: 10, name: "I fagioli", meaning: "Il ciclo completo, la perfezione" },
-    { number: 11, name: "I topolini", meaning: "La forza, la determinazione" },{ number: 12, name: "Il soldato", meaning: "Il sacrificio, la resilienza" },{ number: 13, name: "Sant'Antonio", meaning: "La trasformazione, la fortuna" },{ number: 14, name: "L'ubriaco", meaning: "Il movimento, il progresso" },{ number: 15, name: "Il ragazzo", meaning: "La giovinezza, la vitalità" },{ number: 16, name: "Il culo", meaning: "La struttura, la disciplina" },{ number: 17, name: "La disgrazia", meaning: "La speranza" },{ number: 18, name: "Il sangue", meaning: "La maturità, la responsabilità" },{ number: 19, name: "La risata", meaning: "La leadership, il coraggio" },{ number: 20, name: "La festa", meaning: "L'empatia, la pace" },
-    { number: 21, name: "La donna nuda", meaning: "L'ispirazione, l'intuizione" },{ number: 22, name: "Il pazzo", meaning: "La costruzione, il successo" },{ number: 23, name: "Lo scemo", meaning: "La comunicazione" },{ number: 24, name: "Le guardie", meaning: "La protezione" },{ number: 25, name: "Natale", meaning: "La gioia, la rinascita" },{ number: 26, name: "Anna", meaning: "La dolcezza" },{ number: 27, name: "Il cantante", meaning: "L'arte, l'espressione" },{ number: 28, name: "Il seno", meaning: "Il nutrimento" },{ number: 29, name: "Il pene", meaning: "La virilità" },{ number: 30, name: "Il testicolo", meaning: "La potenza" },
+    { number: 1, name: "L'Italia", meaning: "Il principio" },{ number: 2, name: "La bambina", meaning: "La dualità" },{ number: 3, name: "La gatta", meaning: "La creatività" },{ number: 4, name: "Il maiale", meaning: "La stabilità" },{ number: 5, name: "La mano", meaning: "Il cambiamento" },{ number: 6, name: "La chella guarda in terra", meaning: "L'amore" },{ number: 7, name: "Il vaso di creta", meaning: "La spiritualità" },{ number: 8, name: "La Madonna", meaning: "Il successo" },{ number: 9, name: "La figliolanza", meaning: "La generosità" },{ number: 10, name: "I fagioli", meaning: "La perfezione" },
+    { number: 11, name: "I topolini", meaning: "La forza" },{ number: 12, name: "Il soldato", meaning: "Il sacrificio" },{ number: 13, name: "Sant'Antonio", meaning: "La fortuna" },{ number: 14, name: "L'ubriaco", meaning: "Il progresso" },{ number: 15, name: "Il ragazzo", meaning: "La vitalità" },{ number: 16, name: "Il culo", meaning: "La disciplina" },{ number: 17, name: "La disgrazia", meaning: "La speranza" },{ number: 18, name: "Il sangue", meaning: "La maturità" },{ number: 19, name: "La risata", meaning: "Il coraggio" },{ number: 20, name: "La festa", meaning: "La pace" },
+    { number: 21, name: "La donna nuda", meaning: "L'ispirazione" },{ number: 22, name: "Il pazzo", meaning: "Il successo" },{ number: 23, name: "Lo scemo", meaning: "La comunicazione" },{ number: 24, name: "Le guardie", meaning: "La protezione" },{ number: 25, name: "Natale", meaning: "La rinascita" },{ number: 26, name: "Anna", meaning: "La dolcezza" },{ number: 27, name: "Il cantante", meaning: "L'arte" },{ number: 28, name: "Il seno", meaning: "Il nutrimento" },{ number: 29, name: "Il pene", meaning: "La virilità" },{ number: 30, name: "Il testicolo", meaning: "La potenza" },
     { number: 31, name: "Il padrone di casa", meaning: "L'autorità" },{ number: 32, name: "Il capitone", meaning: "L'ostinazione" },{ number: 33, name: "Gli anni di Cristo", meaning: "Il sacrificio" },{ number: 34, name: "La testa", meaning: "L'intelligenza" },{ number: 35, name: "L'uccellino", meaning: "La libertà" },{ number: 36, name: "Le nacchere", meaning: "La musica" },{ number: 37, name: "Il monaco", meaning: "La meditazione" },{ number: 38, name: "Le botte", meaning: "Il conflitto" },{ number: 39, name: "Il cappio", meaning: "La tensione" },{ number: 40, name: "La quarantena", meaning: "L'attesa" },
     { number: 41, name: "Il coltello", meaning: "La decisione" },{ number: 42, name: "Il caffè", meaning: "L'energia" },{ number: 43, name: "La donna al balcone", meaning: "L'attesa" },{ number: 44, name: "La prigione", meaning: "La limitazione" },{ number: 45, name: "Il vino", meaning: "La festa" },{ number: 46, name: "Il denaro", meaning: "La ricchezza" },{ number: 47, name: "Il morto", meaning: "Il nuovo inizio" },{ number: 48, name: "Il morto che parla", meaning: "Il passato" },{ number: 49, name: "La carne", meaning: "Il corpo" },{ number: 50, name: "Il pane", meaning: "Il nutrimento" },
     { number: 51, name: "Il giardino", meaning: "La natura" },{ number: 52, name: "La mamma", meaning: "L'amore" },{ number: 53, name: "Il vecchio", meaning: "L'esperienza" },{ number: 54, name: "Il cappello", meaning: "L'identità" },{ number: 55, name: "La musica", meaning: "L'armonia" },{ number: 56, name: "La caduta", meaning: "L'ostacolo" },{ number: 57, name: "Lo storpio", meaning: "La forza interiore" },{ number: 58, name: "Il pacco", meaning: "La sorpresa" },{ number: 59, name: "I capelli", meaning: "La vitalità" },{ number: 60, name: "La luna", meaning: "I sogni" },
@@ -182,7 +189,7 @@ function NumberMeaningScreen() {
     { number: 71, name: "L'uomo di merda", meaning: "La critica" },{ number: 72, name: "La meraviglia", meaning: "Lo stupore" },{ number: 73, name: "L'ospedale", meaning: "La cura" },{ number: 74, name: "La grotta", meaning: "Il rifugio" },{ number: 75, name: "Pulcinella", meaning: "L'ironia" },{ number: 76, name: "La fontana", meaning: "L'abbondanza" },{ number: 77, name: "Il diavolo", meaning: "La tentazione" },{ number: 78, name: "La prostituta", meaning: "Il piacere" },{ number: 79, name: "Il ladro", meaning: "La perdita" },{ number: 80, name: "La bocca", meaning: "L'espressione" },
     { number: 81, name: "I fiori", meaning: "La bellezza" },{ number: 82, name: "La tavola imbandita", meaning: "L'abbondanza" },{ number: 83, name: "Il maltempo", meaning: "Le difficoltà" },{ number: 84, name: "La chiesa", meaning: "La fede" },{ number: 85, name: "L'anima", meaning: "L'essenza" },{ number: 86, name: "La bottega", meaning: "Il lavoro" },{ number: 87, name: "Il gatto", meaning: "L'indipendenza" },{ number: 88, name: "Il caciocavallo", meaning: "La tradizione" },{ number: 89, name: "La nonna", meaning: "La saggezza" },{ number: 90, name: "La paura", meaning: "Il coraggio" },
   ];
-  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>🔢 Significato dei Numeri</Text><Text style={[styles.description,{color:theme.subtext}]}>Smorfia Napoletana</Text></View>{numberMeanings.map((item, index) => (<View key={index} style={[styles.meaningCard,{backgroundColor:theme.card}]}><View style={styles.meaningNumberBadge}><Text style={styles.meaningNumberText}>{item.number}</Text></View><View style={styles.meaningInfo}><Text style={[styles.meaningName,{color:theme.text}]}>{item.name}</Text><Text style={[styles.meaningDesc,{color:theme.subtext}]}>{item.meaning}</Text></View></View>))}<View style={{height:30}}/></ScrollView>);
+  return (<ScrollView style={[styles.container,{backgroundColor:theme.bg}]}><View style={[styles.generatorCard,{backgroundColor:theme.card}]}><Text style={[styles.sectionTitle,{color:theme.text}]}>🔢 Significato dei Numeri</Text></View>{numberMeanings.map((item, index) => (<View key={index} style={[styles.meaningCard,{backgroundColor:theme.card}]}><View style={styles.meaningNumberBadge}><Text style={styles.meaningNumberText}>{item.number}</Text></View><View style={styles.meaningInfo}><Text style={[styles.meaningName,{color:theme.text}]}>{item.name}</Text><Text style={[styles.meaningDesc,{color:theme.subtext}]}>{item.meaning}</Text></View></View>))}<View style={{height:30}}/></ScrollView>);
 }
 function ExtractionListScreen() {
   const [extractions, setExtractions] = useState([]); const [loading, setLoading] = useState(true);
@@ -244,20 +251,11 @@ const styles = StyleSheet.create({
   numbersGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',gap:10},numberBadge:{backgroundColor:'#fff',borderRadius:15,padding:12,alignItems:'center',width:65,elevation:3},rankText:{fontSize:10,color:'#666',fontWeight:'bold'},numberText:{fontSize:24,fontWeight:'bold',color:'#1a237e'},
   loadingText:{fontSize:18,marginTop:20,fontWeight:'bold'},footer:{textAlign:'center',marginTop:20,marginBottom:30},
   statsGrid:{flexDirection:'row',justifyContent:'space-around',gap:10},statCard:{padding:20,borderRadius:12,alignItems:'center',flex:1,elevation:2},statIcon:{fontSize:25,marginBottom:5},statValue:{fontSize:28,fontWeight:'bold'},statLabel:{fontSize:12,color:'#666',marginTop:5},statsSection:{padding:15},
-  // HEATMAP
-  heatmapToggle:{margin:15,padding:15,borderRadius:12},
-  heatmapCard:{marginHorizontal:15,marginBottom:15,padding:15,borderRadius:12},
-  heatmapTitle:{fontSize:16,fontWeight:'bold',marginBottom:10,textAlign:'center'},
-  heatmapLegend:{flexDirection:'row',justifyContent:'center',gap:15,marginBottom:10},
-  legendItem:{flexDirection:'row',alignItems:'center',gap:5},
-  legendBox:{width:16,height:16,borderRadius:4},
-  legendLabel:{fontSize:11},
-  hRow:{flexDirection:'row'},
-  hHeader:{width:38,height:22,justifyContent:'center',alignItems:'center'},
-  hHeaderText:{fontSize:9,fontWeight:'bold'},
-  hCell:{width:38,height:38,justifyContent:'center',alignItems:'center',margin:1,borderRadius:4},
-  hCellTop:{borderWidth:2,borderColor:'#FFD700'},
-  hCellNum:{fontSize:11,fontWeight:'500'},
-  hCellFreq:{fontSize:8},
-  hCellStar:{fontSize:8,position:'absolute',top:-2,right:-2},
+  // Classifica Decine
+  groupRow:{flexDirection:'row',alignItems:'center',marginBottom:6},
+  groupRank:{fontSize:12,fontWeight:'bold',width:25},
+  groupName:{fontSize:13,width:45},
+  groupBarContainer:{flex:1,height:18,backgroundColor:'#e0e0e0',borderRadius:9,marginHorizontal:8},
+  groupBar:{height:18,borderRadius:9},
+  groupFreq:{fontSize:12,fontWeight:'bold',width:25,textAlign:'right'},
 });
